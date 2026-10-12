@@ -1,0 +1,26 @@
+# Secretos y configuración local: nunca al repositorio
+.env
+*.env.local
+.databrickscfg
+
+# Entornos y artefactos de Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Salidas locales del generador (revisión con --dry-run)
+out/
+
+# Databricks Asset Bundles (estado local de despliegue)
+.databricks/
+
+# Herramientas y sistema operativo
+.claude/
+.vscode/
+.DS_Store
+Thumbs.db
+~$*
+
+# Documento del cliente (enunciado del reto): no se versiona
+Reto_Tecnico.pdf
