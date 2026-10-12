@@ -7,7 +7,7 @@ Copia de lo entregado para el nivel 1, con la misma estructura de carpetas que e
 | Requisito del reto (nivel 1) | Archivo |
 |---|---|
 | **Código / notebooks de ingesta** | [src/ingesta/nb_bronze_sqlserver_ingesta.ipynb](src/ingesta/nb_bronze_sqlserver_ingesta.ipynb) · [src/ingesta/nb_preparar_entorno.ipynb](src/ingesta/nb_preparar_entorno.ipynb) |
-| **Jobs** (Lakeflow Jobs) | [resources/ingesta_job.yml](resources/ingesta_job.yml) |
+| **Jobs** (Lakeflow Jobs) | [resources/ingesta_job.yml](resources/ingesta_job.yml) · secuencia y corridas reales: [andina-market-job-ingesta.jpg](docs/arquitectura/andina-market-job-ingesta.jpg) |
 | **Despliegue reproducible** (Declarative Automation Bundle, dev/prd) | [databricks.yml](databricks.yml) |
 | **README con decisiones** (y supuestos, cómo reproducir, uso de IA) | [README.md](README.md) |
 | **Diagrama propio de la arquitectura** | [docs/arquitectura/andina-market-arquitectura-v4.3.jpg](docs/arquitectura/andina-market-arquitectura-v4.3.jpg) · editable [.excalidraw](docs/arquitectura/andina-market-arquitectura-v4.3.excalidraw) · versión anterior [v3.1](docs/arquitectura/andina-market-arquitectura-v3.1.excalidraw) |

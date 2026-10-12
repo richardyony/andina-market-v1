@@ -127,6 +127,10 @@ Verificado con consultas sobre `andina_dev.bronze.*_raw` y `andina_dev.control.c
 
 - **Estados intermedios de pagos, en su orden real** (`_lsn`, `_seqval`): el pago 42213 aparece tres veces, `pendiente → aprobado → reembolsado`; el 42178 queda `pendiente → rechazado` y su reintento 42247 pasa `pendiente → aprobado`. Es lo que `Change Tracking` o un watermark por `UpdatedAt` habrían perdido.
 - **Sin duplicados:** 0 filas repetidas para la misma clave, `_lsn` y `_seqval`.
+**Secuencia del job y sus corridas reales** (flujo de tareas y línea de tiempo):
+
+![Secuencia del job andina_ingesta](docs/arquitectura/andina-market-job-ingesta.jpg)
+
 - **Job desplegado con el bundle en dev:** corrida exitosa (`preparar_entorno` y `ingesta_sqlserver`); las 6 tablas en incremental `SIN_CAMBIOS`, como corresponde después de haber ingerido el día simulado.
 - **Idempotencia:** re-ejecutar sin cambios en la fuente no agrega filas (watermark sin datos nuevos + checkpoint de Auto Loader).
 - **Manejo de errores:** la bitácora registra una primera corrida con error en las 6 tablas: una consulta escalar sin alias que SQL Server rechaza cuando Spark la envuelve en una subconsulta JDBC. Cada tabla registró su error sin detener las demás y el watermark no avanzó; corregido el alias, la siguiente corrida hizo la foto completa sin pérdidas.
