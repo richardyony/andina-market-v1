@@ -1,0 +1,53 @@
+# =============================================================================
+#  Andina Market · Declarative Automation Bundle (antes Databricks Asset Bundle)
+#  Define como código los recursos de Databricks y los despliega igual en cada
+#  entorno. El mismo código va a dev y prd: solo cambian las variables.
+#
+#  Uso:
+#    databricks bundle validate -t dev
+#    databricks bundle deploy   -t dev
+#    databricks bundle run andina_ingesta -t dev
+# =============================================================================
+bundle:
+  name: andina_market
+
+include:
+  - resources/*.yml
+
+variables:
+  catalogo:
+    description: Catálogo de Unity Catalog del entorno.
+  secret_scope:
+    description: Secret scope respaldado por el Key Vault del entorno (credenciales de Azure SQL).
+  storage_account:
+    description: Cuenta ADLS Gen2 del entorno (raíz de los Volumes externos de landing).
+  correo_alertas:
+    description: Destinatario de las alertas cuando un job falla.
+    default: richardyony@gmail.com
+
+targets:
+  dev:
+    # Recursos con prefijo "[dev <usuario>]" y schedules en pausa: nadie ejecuta
+    # jobs programados por accidente en desarrollo.
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-7405605614782968.8.azuredatabricks.net
+    variables:
+      catalogo: andina_dev
+      secret_scope: kv-andina-dev
+      storage_account: standinadevcus001
+
+  prd:
+    # Supuesto del reto: corre y se despliega con el usuario que despliega, en
+    # una carpeta que solo él puede modificar (no /Workspace/Shared, editable
+    # por todos). En una empresa: run_as con un service principal de producción
+    # y root_path en una carpeta con permisos solo para ese principal.
+    mode: production
+    workspace:
+      host: https://adb-7405605614782968.8.azuredatabricks.net
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalogo: andina_prd
+      secret_scope: kv-andina-prd
+      storage_account: standinaprdcus001

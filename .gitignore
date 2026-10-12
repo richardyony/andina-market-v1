@@ -24,3 +24,6 @@ Thumbs.db
 
 # Documento del cliente (enunciado del reto): no se versiona
 Reto_Tecnico.pdf
+
+# Datos generados localmente (clickstream): no van a Git, solo su log en fuentes/logs/
+salida/
