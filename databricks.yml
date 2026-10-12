@@ -18,6 +18,7 @@ include:
 sync:
   exclude:
     - entregables_n1/**
+    - entregables_n2/**
     - docs/**
 
 variables:

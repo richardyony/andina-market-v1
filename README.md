@@ -9,10 +9,10 @@ Plataforma de datos sobre **Azure + Databricks** para Andina Market, un retailer
 | 0 · Fuente | Azure SQL con esquema propio, datos sintéticos inyectados en la base, CDC en las 6 tablas | ✅ |
 | 1 · Ingesta | CDC → landing (Parquet) → bronze con Auto Loader; tablas de control; bundle dev/prd; job serverless | ✅ |
 | 1 · Diseño | [Streaming del clickstream](docs/diseno_streaming.md) (Event Hubs + Structured Streaming) y [SAP ECC on-premise](docs/diseno_sap.md) (ADF + Self-hosted IR + SAP CDC) | ✅ |
-| 2 · Transformación | Silver con calidad y SCD, gold dimensional | ⏳ siguiente |
-| 3 a 6 | Gold + BI, feature store, RAG, agente | ⏳ |
+| 2 · Transformación | Lakeflow Declarative Pipelines: silver con AUTO CDC (SCD1/SCD2), reglas de calidad y cuarentena; gold en estrella | ✅ |
+| 3 a 6 | Capa de KPIs + BI, feature store, RAG, agente | ⏳ |
 
-Prioricé **profundidad en los niveles 0 y 1** antes de avanzar, como sugiere el reto.
+Prioricé **profundidad en los niveles 0 a 2** antes de avanzar, como sugiere el reto.
 
 ---
 
@@ -72,6 +72,12 @@ Cada decisión con su porqué y la alternativa que descarté.
 | D-13 | **Lakeflow Jobs + Declarative Automation Bundle** | Todo el flujo vive en Databricks (linaje, monitoreo y permisos en un lugar). El bundle versiona el job y lo despliega igual en dev y prd | Azure Data Factory / Airflow: otra herramienta que operar sin ventaja para este alcance |
 | D-14 | **Frecuencia diaria (02:00, hora de Lima)** | El negocio analiza el día anterior; la retención de CDC (7 días) deja 6 días de margen ante caídas. Migrar a más frecuencia es cambiar el cron | Cada hora o continuo: más costo sin necesidad del negocio |
 | D-15 | **Credenciales en Key Vault + secret scope, usuario de solo lectura** | Databricks lee la fuente con un usuario con `db_datareader` y el rol `cdc_reader`; nunca con el administrador. Ninguna credencial está en el código ni en Git | Credenciales en el notebook o en variables del job |
+| D-17 | **Lakeflow Declarative Pipelines** para silver y gold | Dependencias entre tablas y calidad declaradas como código, con métricas y grafo en la interfaz; el pipeline decide el orden y es incremental | Notebooks sueltos con `MERGE` manuales: orden y calidad a cargo del desarrollador |
+| D-18 | **`AUTO CDC` ordenado por `(fecha efectiva, _lsn, _seqval)`** | Aplica los cambios de bronze en su orden real, resuelve duplicados de la foto completa y llegadas fuera de orden, y convierte `D` en borrados. La fecha efectiva es el commit en Azure SQL o, en la foto completa, `UpdatedAt` (lo mantienen los triggers de la fuente) | `MERGE` propio por clave: hay que programar el orden, los borrados y el SCD2 a mano |
+| D-19 | **SCD2 solo donde el negocio lo necesita:** segmento del cliente y estado del pago | Cada venta se atribuye al segmento que el cliente tenía al comprar; el recorrido de un pago (pendiente → aprobado → reembolsado) queda medible. Solo esas columnas abren versión: corregir un teléfono no es un cambio de negocio | SCD2 en todas las columnas (versiones sin valor) o solo SCD1 (se pierde la historia) |
+| D-20 | **Calidad en tres niveles: fallar, descartar a cuarentena, advertir** | Nada se descarta en silencio: lo inválido queda en `silver.cuarentena` con la regla que falló; lo mejorable entra marcado (`es_*`). Los `DELETE` CDC nunca se descartan | Solo `drop`: se pierde la evidencia de lo rechazado |
+| D-21 | **Estrella en gold con grano de línea y claves sustitutas deterministas** | El grano de línea permite analizar por producto sin duplicar; la unión a la versión SCD2 vigente usa la fecha del pedido; las claves por hash hacen que recalcular gold dé el mismo resultado | Tabla ancha desnormalizada: más simple, pero repite atributos y no conserva la historia de segmento |
+| D-22 | **Liquid clustering en lugar de particiones** | Con ~170 000 filas, particionar por fecha produciría miles de archivos diminutos; `CLUSTER BY` ordena por las columnas de consulta y se adapta al crecer | Particionar por fecha o país: problema de archivos pequeños |
 | D-16 | **Control de costos** | SQL warehouse en 2X-Small, auto-stop 5 min y escalado 1/1; jobs serverless en modo STANDARD; schedules en pausa en dev | Valores por defecto: en una versión anterior el SQL warehouse explicó el 66 % del gasto |
 
 ---
@@ -138,7 +144,41 @@ Verificado con consultas sobre `andina_dev.bronze.*_raw` y `andina_dev.control.c
 
 ---
 
-## 5. Cómo reproducir
+## 5. Transformación y modelado (nivel 2)
+
+Pipeline declarativo `andina_transformacion` (Lakeflow Declarative Pipelines, serverless, modo *triggered*), desplegado con el bundle y ejecutado como **tercera tarea del job**: `preparar_entorno → ingesta_sqlserver → transformacion_silver_gold`. Diseño completo, reglas y justificación de las etapas: [docs/modelo_datos.md](docs/modelo_datos.md).
+
+![Modelo de datos: silver y estrella de gold](docs/arquitectura/andina-market-modelo-datos.jpg)
+
+Fuente editable: [andina-market-modelo-datos.excalidraw](docs/arquitectura/andina-market-modelo-datos.excalidraw).
+
+| Archivo | Qué hace |
+|---|---|
+| [src/transformacion/reglas_calidad.py](src/transformacion/reglas_calidad.py) | Reglas de calidad como código por tabla: fallar, descartar a cuarentena o advertir |
+| [src/transformacion/silver.py](src/transformacion/silver.py) | Por tabla: vista de limpieza (snake_case en español, emails y ciudades normalizados) → `AUTO CDC` → silver (SCD1) e historial SCD2 de segmento y de estado de pago; cuarentena y controles de integridad |
+| [src/transformacion/gold.py](src/transformacion/gold.py) | Estrella: `dim_cliente` (SCD2), `dim_producto`, `dim_fecha`, `dim_canal`, `fact_ventas` (grano línea), `fact_pagos` |
+| [resources/transformacion_pipeline.yml](resources/transformacion_pipeline.yml) | El pipeline en el bundle (catálogo por entorno, serverless, triggered) |
+| [src/validacion/nb_validacion_silver_gold.ipynb](src/validacion/nb_validacion_silver_gold.ipynb) | Validaciones con números de silver y gold |
+
+**Por qué estas etapas:** bronze guarda lo que llegó; silver decide qué es correcto (una fila por entidad, calidad, historia); gold organiza para el negocio. Cada capa tiene un solo motivo para cambiar, y como bronze conserva todo, silver y gold se pueden reconstruir desde cero.
+
+### Evidencia (12/10/2026, dev)
+
+| Validación | Resultado |
+|---|---|
+| Silver cuadra con bronze (claves vivas tras aplicar todos los cambios) | ✅ 6 de 6 tablas: clientes 5 095, productos 400, pedidos 40 150, líneas 79 207, pagos 42 254, tickets 6 025 |
+| Cuarentena | 0 filas: la fuente tiene `CHECK` de dominio; las reglas protegen ante datos futuros |
+| Integridad cabecera-detalle | 119 pedidos con total ≠ suma de líneas y 38 pedidos sin líneas, los mismos que sembró el generador; 0 filas huérfanas |
+| SCD2 | Pago 42213: `pendiente → aprobado → reembolsado`; cliente 38: `regular → frecuente`. 29 versiones extra de clientes y 157 de pagos por el día simulado |
+| Gold cuadra con silver | 79 207 líneas y 8 956 971,97 USD en ambas capas; 0 ventas sin cliente o sin producto |
+| Posibles duplicados | 154 clientes marcados (cuentas duplicadas y sus originales) |
+| Por qué SCD2 | Ventas VIP por segmento al comprar: 2 889 760 USD; por segmento actual: 2 894 763 USD |
+| Job completo con el bundle (3 tareas) | ✅ SUCCESS en 14,9 min: preparar 5,7 · ingesta 2,9 · transformación 6,2 |
+| Idempotencia | Segunda corrida sin cambios en la fuente: silver y gold idénticos (mismos conteos y 8 956 971,97 USD) |
+
+---
+
+## 6. Cómo reproducir
 
 **Requisitos:** suscripción de Azure, workspace de Databricks Premium con Unity Catalog, Databricks CLI, Python 3.12 y Microsoft ODBC Driver 18 for SQL Server.
 
@@ -161,13 +201,14 @@ Verificado con consultas sobre `andina_dev.bronze.*_raw` y `andina_dev.control.c
    .\fuentes\simular_dia.ps1                        # un día de cambios en la fuente
    databricks bundle run andina_ingesta -t dev      # incremental: solo los cambios
    ```
-6. **Verificar:** abrir `src/validacion/nb_validacion_bronze_sqlserver.ipynb`, o consultar `andina_dev.control.ctl_ejecuciones`.
+6. **Transformación:** el mismo job ejecuta después el pipeline `andina_transformacion` (silver y gold). Para correrlo solo: `databricks bundle run andina_transformacion -t dev`.
+7. **Verificar:** `src/validacion/nb_validacion_bronze_sqlserver.ipynb` (ingesta) y `src/validacion/nb_validacion_silver_gold.ipynb` (silver y gold), o consultar `andina_dev.control.ctl_ejecuciones`.
 
 Promover a producción es `databricks bundle deploy -t prd`, sin cambiar código.
 
 ---
 
-## 6. Supuestos
+## 7. Supuestos
 
 - **Datos sintéticos:** la empresa es ficticia; montos en **USD** y fechas en **UTC**. Países: Perú, Colombia, Ecuador, Bolivia y Chile.
 - **Un workspace para dev y prd:** el aislamiento lo dan catálogo, storage y Key Vault por entorno. En una empresa grande habría un workspace por entorno.
@@ -178,12 +219,13 @@ Promover a producción es `databricks bundle deploy -t prd`, sin cambiar código
 
 ---
 
-## 7. Uso de IA
+## 8. Uso de IA
 
 Usé asistentes de IA en todo el proyecto, como permite el reto. Las decisiones, la validación de resultados y la revisión de cada pieza son mías.
 
 - **Generador de datos, SQL de la fuente y notebooks de ingesta y validación:** los diseñé y construí con **Claude** (chat), y los revisé, ejecuté y ajusté yo contra la base y el workspace reales.
 - **Claude Code** (asistente en VS Code): me guio en la creación de la infraestructura (que hice yo en el portal), verificó configuraciones y costos con Azure CLI y Databricks CLI, preparó el bundle y el job, organizó el repositorio y redactó la documentación a partir de mis decisiones.
+- **Nivel 2 (pipeline, reglas, modelo y validación):** el diseño de etapas, las decisiones de SCD y alcance las tomé yo; Claude Code generó el código del pipeline, las reglas y el notebook de validación a partir de esas decisiones y de los casos borde de mi generador, y lo validamos contra los datos reales (cuadres bronze → silver → gold).
 - **Lo que detecté y corregí al revisar:** el job desplegado con el bundle falló por un paréntesis sobrante en un `MERGE` que en la ejecución manual no se había manifestado; se reemplazó por un DataFrame con esquema explícito. También se corrigieron rutas relativas de los logs de los generadores y un bundle de prd que inicialmente usaba una carpeta editable por todos los usuarios.
 
 ---
@@ -192,10 +234,13 @@ Usé asistentes de IA en todo el proyecto, como permite el reto. Las decisiones,
 
 ```
 databricks.yml                bundle (targets dev y prd)
-resources/ingesta_job.yml     job de ingesta (Lakeflow Jobs)
+resources/ingesta_job.yml     job (Lakeflow Jobs): preparar → ingesta → transformación
+resources/transformacion_pipeline.yml   pipeline declarativo silver y gold
 fuentes/                      DDL, generador de datos, CDC, simulador de día, clickstream y logs de evidencia
 sample_data/                  muestra .jsonl del clickstream de la app (una hora, con todos los casos borde)
 src/ingesta/                  preparación del entorno e ingesta CDC → landing → bronze
-src/validacion/               validación de la ingesta
-docs/arquitectura/            diagrama de arquitectura
+src/transformacion/           reglas de calidad, silver (AUTO CDC, SCD) y gold (estrella)
+src/validacion/               validación de la ingesta y de silver/gold
+docs/                         modelo de datos y diseños de streaming y SAP
+docs/arquitectura/            diagramas (arquitectura, modelo, job, streaming, SAP)
 ```
