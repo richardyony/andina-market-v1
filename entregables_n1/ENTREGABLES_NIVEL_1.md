@@ -10,7 +10,7 @@ Copia de lo entregado para el nivel 1, con la misma estructura de carpetas que e
 | **Jobs** (Lakeflow Jobs) | [resources/ingesta_job.yml](resources/ingesta_job.yml) |
 | **Despliegue reproducible** (Declarative Automation Bundle, dev/prd) | [databricks.yml](databricks.yml) |
 | **README con decisiones** (y supuestos, cómo reproducir, uso de IA) | [README.md](README.md) |
-| **Diagrama propio de la arquitectura** | [docs/arquitectura/andina-market-arquitectura-v4.2.jpg](docs/arquitectura/andina-market-arquitectura-v4.2.jpg) · editable [.excalidraw](docs/arquitectura/andina-market-arquitectura-v4.2.excalidraw) · versión anterior [v3.1](docs/arquitectura/andina-market-arquitectura-v3.1.excalidraw) |
+| **Diagrama propio de la arquitectura** | [docs/arquitectura/andina-market-arquitectura-v4.3.jpg](docs/arquitectura/andina-market-arquitectura-v4.3.jpg) · editable [.excalidraw](docs/arquitectura/andina-market-arquitectura-v4.3.excalidraw) · versión anterior [v3.1](docs/arquitectura/andina-market-arquitectura-v3.1.excalidraw) |
 | **Diseño de streaming** (documento + diagrama) | [docs/diseno_streaming.md](docs/diseno_streaming.md) · [diagrama](docs/arquitectura/andina-market-streaming.jpg) |
 | **Diseño de SAP ECC on-premise** (documento + diagrama) | [docs/diseno_sap.md](docs/diseno_sap.md) · [diagrama](docs/arquitectura/andina-market-sap.jpg) |
 | **Muestra de eventos de streaming (.jsonl)** | [sample_data/clickstream_app_events.jsonl](sample_data/clickstream_app_events.jsonl) · generador [fuentes/06_generar_clickstream.py](fuentes/06_generar_clickstream.py) |
