@@ -1,14 +1,15 @@
 # =============================================================================
-#  Job de ingesta (Lakeflow Jobs): Azure SQL (CDC) → landing (Parquet) → bronze
+#  Job de ingesta y transformación (Lakeflow Jobs): Azure SQL (CDC) → bronze → silver → gold
 #  1. preparar_entorno : esquemas y Volumes que necesita la ingesta (idempotente)
 #  2. ingesta_sqlserver: extracción CDC + Auto Loader (availableNow) a bronze
+#  3. transformacion_silver_gold: pipeline declarativo bronze → silver → gold
 #  Cómputo serverless: sin bloque de cluster en las tareas.
 # =============================================================================
 resources:
   jobs:
     andina_ingesta:
       name: andina_ingesta
-      description: Azure SQL (CDC) → landing (Parquet) → bronze.<tabla>_raw con Auto Loader.
+      description: Azure SQL (CDC) → landing → bronze (Auto Loader) → silver y gold (pipeline declarativo).
 
       tasks:
         - task_key: preparar_entorno
@@ -30,6 +31,13 @@ resources:
               tablas: "*"
               forzar_full: "false"
           max_retries: 1                # reintento seguro: el watermark solo avanza tras escribir
+
+        - task_key: transformacion_silver_gold
+          depends_on:
+            - task_key: ingesta_sqlserver
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.andina_transformacion.id}
+            full_refresh: false         # incremental: solo procesa lo nuevo de bronze
 
       # Modo estándar de serverless: más barato; en batch no importa el arranque.
       performance_target: STANDARD
