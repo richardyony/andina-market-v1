@@ -1,6 +1,6 @@
 # Diseño: ingesta del clickstream en tiempo real
 
-> **Solo diseño**, como pide el reto (nivel 1, extensión de diseño). Lo implementado es la muestra `.jsonl` que generaría la app ([fuentes/06_generar_clickstream.py](../fuentes/06_generar_clickstream.py)) y el Volume `andina_<env>.landing.clickstream` donde se deposita.
+> **Solo diseño**, como pide el reto (nivel 1, extensión de diseño). Lo implementado es la muestra `.jsonl` que generaría la app ([fuentes/06_generar_clickstream.py](../fuentes/06_generar_clickstream.py)) y el Volume `andina_<env>.landing.clickstream` donde se deposita. Muestra en el repo: [sample_data/clickstream_app_events.jsonl](../sample_data/clickstream_app_events.jsonl); el día completo (24 archivos, 12 533 eventos) está en `/Volumes/andina_dev/landing/clickstream/fecha=2026-10-12/`.
 
 ![Diseño de streaming del clickstream](arquitectura/andina-market-streaming.jpg)
 

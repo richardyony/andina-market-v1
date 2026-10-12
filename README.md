@@ -84,7 +84,7 @@ Cada decisión con su porqué y la alternativa que descarté.
 | [fuentes/02_generar_datos_andina.py](fuentes/02_generar_datos_andina.py) | Genera datos sintéticos y los **inserta directamente en Azure SQL** (sin archivo intermedio). `--modo inicial`: 18 meses de historia. `--modo dia`: un día de operación con inserts, updates (incluidos pagos que cambian dos veces) y deletes |
 | [fuentes/03_habilitar_cdc.sql](fuentes/03_habilitar_cdc.sql) | CDC en la base y en las 6 tablas, lectura restringida a `cdc_reader`, retención de 7 días |
 | [fuentes/simular_dia.ps1](fuentes/simular_dia.ps1) | Ejecuta `--modo dia` pidiendo la contraseña sin mostrarla y borrándola al terminar |
-| [fuentes/06_generar_clickstream.py](fuentes/06_generar_clickstream.py) | Muestra `.jsonl` del clickstream de la app, coherente con los clientes, productos y pedidos de la base |
+| [fuentes/06_generar_clickstream.py](fuentes/06_generar_clickstream.py) | Muestra `.jsonl` del clickstream de la app, coherente con los clientes, productos y pedidos de la base. Muestra versionada: [sample_data/clickstream_app_events.jsonl](sample_data/clickstream_app_events.jsonl) (744 eventos de una hora; el día completo, 12 533 eventos en 24 archivos, está en el Volume `andina_dev.landing.clickstream`) |
 
 **Volumetría de la carga inicial** ([log](fuentes/logs/inicial_20261010_162156.json)): 5 075 clientes · 400 productos · 40 000 pedidos · 78 945 líneas · 42 096 pagos · 6 000 tickets.
 
@@ -190,6 +190,7 @@ Usé asistentes de IA en todo el proyecto, como permite el reto. Las decisiones,
 databricks.yml                bundle (targets dev y prd)
 resources/ingesta_job.yml     job de ingesta (Lakeflow Jobs)
 fuentes/                      DDL, generador de datos, CDC, simulador de día, clickstream y logs de evidencia
+sample_data/                  muestra .jsonl del clickstream de la app (una hora, con todos los casos borde)
 src/ingesta/                  preparación del entorno e ingesta CDC → landing → bronze
 src/validacion/               validación de la ingesta
 docs/arquitectura/            diagrama de arquitectura

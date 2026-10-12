@@ -1,0 +1,26 @@
+{
+  "fecha": "2026-10-12",
+  "semilla": 2026,
+  "origen_ids": "rango (--sin-db)",
+  "eventos": 12533,
+  "archivos": 24,
+  "por_tipo": {
+    "app_open": 2050,
+    "product_view": 7119,
+    "add_to_cart": 1816,
+    "remove_from_cart": 365,
+    "checkout_start": 334,
+    "search": 849
+  },
+  "casos_borde": {
+    "sesiones_anonimas": 320,
+    "campo_nuevo_campaign": 754,
+    "product_id_huerfano": 44,
+    "eventos_tardios": 376,
+    "price_como_texto": 73,
+    "reloj_adelantado": 117,
+    "eventos_duplicados": 246,
+    "lineas_json_corruptas": 42
+  },
+  "carpeta": "D:\\CURSO DATA WIZARD\\RETO DANIEL\\andina-market-v1\\fuentes\\salida\\clickstream\\fecha=2026-10-12"
+}
