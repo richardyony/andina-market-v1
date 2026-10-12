@@ -18,9 +18,9 @@ Prioricé **profundidad en los niveles 0 y 1** antes de avanzar, como sugiere el
 
 ## 1. Arquitectura
 
-![Arquitectura de Andina Market](docs/arquitectura/andina-market-arquitectura-v4.1.jpg)
+![Arquitectura de Andina Market](docs/arquitectura/andina-market-arquitectura-v4.2.jpg)
 
-Fuente editable: [andina-market-arquitectura-v4.1.excalidraw](docs/arquitectura/andina-market-arquitectura-v4.1.excalidraw) (ábrela en excalidraw.com). Versión anterior, más detallada: [v3.1](docs/arquitectura/andina-market-arquitectura-v3.1.excalidraw). Línea continua: implementado; discontinua: diseño o siguiente nivel.
+Fuente editable: [andina-market-arquitectura-v4.2.excalidraw](docs/arquitectura/andina-market-arquitectura-v4.2.excalidraw) (ábrela en excalidraw.com). Versión anterior, más detallada: [v3.1](docs/arquitectura/andina-market-arquitectura-v3.1.excalidraw). Línea continua: implementado; discontinua: diseño o siguiente nivel.
 
 ```
 Azure SQL (sqldb-andinamarket-cus-001)                 Unity Catalog · <catalogo> = andina_dev | andina_prd
