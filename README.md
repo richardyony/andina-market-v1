@@ -8,7 +8,7 @@ Plataforma de datos sobre **Azure + Databricks** para Andina Market, un retailer
 |---|---|---|
 | 0 · Fuente | Azure SQL con esquema propio, datos sintéticos inyectados en la base, CDC en las 6 tablas | ✅ |
 | 1 · Ingesta | CDC → landing (Parquet) → bronze con Auto Loader; tablas de control; bundle dev/prd; job serverless | ✅ |
-| 1 · Diseño | [Streaming del clickstream](docs/diseno_streaming.md) (Event Hubs + Structured Streaming) ✅ · SAP ECC on-premise 🟡 | 🟡 |
+| 1 · Diseño | [Streaming del clickstream](docs/diseno_streaming.md) (Event Hubs + Structured Streaming) y [SAP ECC on-premise](docs/diseno_sap.md) (ADF + Self-hosted IR + SAP CDC) | ✅ |
 | 2 · Transformación | Silver con calidad y SCD, gold dimensional | ⏳ siguiente |
 | 3 a 6 | Gold + BI, feature store, RAG, agente | ⏳ |
 
