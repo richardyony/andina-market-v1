@@ -32,7 +32,7 @@
    ANDINA_SQL_PASSWORD  contraseña de ese usuario
 
  Entradas     : parámetros de línea de comandos (ver --help)
- Salidas      : filas en dbo.* ; resumen en consola ; logs/<modo>_<fecha>.json
+ Salidas      : filas en dbo.* ; resumen en consola ; fuentes/logs/<modo>_<fecha>.json
  Dependencias : Python 3.10+, pyodbc, ODBC Driver 18 for SQL Server
  Reproducible : semilla fija (--semilla). Misma semilla + misma fecha = mismos datos.
  Autoría      : Richard Huamán · construido con asistencia de IA (Claude);
@@ -951,8 +951,10 @@ def main() -> None:
     resumen.update({"modo": args.modo, "semilla": args.semilla, "segundos": round(time.time() - t0, 1)})
 
     print(json.dumps(resumen, indent=2, ensure_ascii=False, default=str))
-    Path("logs").mkdir(exist_ok=True)
-    archivo = Path("logs") / f"{args.modo}_{datetime.now():%Y%m%d_%H%M%S}{'_dryrun' if args.dry_run else ''}.json"
+    # Junto al script (fuentes/logs/), sin importar desde qué carpeta se ejecute.
+    carpeta_logs = Path(__file__).resolve().parent / "logs"
+    carpeta_logs.mkdir(exist_ok=True)
+    archivo = carpeta_logs / f"{args.modo}_{datetime.now():%Y%m%d_%H%M%S}{'_dryrun' if args.dry_run else ''}.json"
     archivo.write_text(json.dumps(resumen, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     log(f"Resumen guardado en {archivo}")
 
