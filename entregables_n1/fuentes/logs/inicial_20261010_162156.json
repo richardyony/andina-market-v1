@@ -1,0 +1,62 @@
+{
+  "filas": {
+    "Customers": 5075,
+    "Products": 400,
+    "Orders": 40000,
+    "OrderItems": 78945,
+    "Payments": 42096,
+    "SupportTickets": 6000
+  },
+  "estado_pedidos": {
+    "entregado": 35516,
+    "cancelado": 2356,
+    "devuelto": 1108,
+    "enviado": 499,
+    "pagado": 483,
+    "pendiente": 38
+  },
+  "estado_pagos": {
+    "aprobado": 36443,
+    "rechazado": 4461,
+    "reembolsado": 1111,
+    "pendiente": 81
+  },
+  "segmentos": {
+    "nuevo": 628,
+    "frecuente": 761,
+    "regular": 3433,
+    "vip": 253
+  },
+  "casos_borde": {
+    "cliente_telefono_nulo": 102,
+    "cliente_ciudad_nula": 139,
+    "cliente_email_sucio": 179,
+    "cliente_ciudad_sucia": 234,
+    "cliente_duplicado": 75,
+    "producto_sin_descripcion": 16,
+    "pedido_con_varios_intentos_pago": 3382,
+    "pedido_total_descuadrado": 119,
+    "pedido_sin_lineas": 38,
+    "ticket_con_emojis": 126,
+    "ticket_body_nulo": 106,
+    "ticket_muy_largo": 56
+  },
+  "autocontrol": {
+    "pagos_antes_del_pedido": 0,
+    "pedidos_antes_del_alta": 0,
+    "updated_menor_que_created": 0,
+    "fechas_futuras": 0,
+    "tickets_cierre_antes_apertura": 0,
+    "ticket_promedio_usd": 223.200181
+  },
+  "validaciones_en_base": {
+    "pedidos_sin_lineas": 38,
+    "pedidos_total_descuadrado": 119,
+    "pagos_antes_del_pedido": 0,
+    "pedidos_antes_del_alta": 0,
+    "emails_repetidos_normalizados": 56
+  },
+  "modo": "inicial",
+  "semilla": 2026,
+  "segundos": 250.0
+}

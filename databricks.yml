@@ -14,6 +14,12 @@ bundle:
 include:
   - resources/*.yml
 
+# Archivos que no se suben al workspace: la copia de entregables y documentación pesada.
+sync:
+  exclude:
+    - entregables_n1/**
+    - docs/**
+
 variables:
   catalogo:
     description: Catálogo de Unity Catalog del entorno.
