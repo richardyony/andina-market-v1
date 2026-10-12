@@ -1,10 +1,10 @@
 """
 ===============================================================================
- Archivo      : reglas_calidad.py
+ Archivo      : silver/reglas_calidad.py
  Proyecto     : Andina Market · Reto técnico de Ingeniería de Datos
  Capa         : Silver · reglas de calidad (nivel 2)
  Propósito    : Reglas de calidad como código, agrupadas por tabla y por acción.
-                Las usa el pipeline declarativo (silver.py) como expectations y
+                Las usan los notebooks slv_<entidad> del pipeline de silver como expectations y
                 para armar la cuarentena. No depende de Spark: es un catálogo
                 de reglas que se puede leer, revisar y versionar.
 
@@ -85,8 +85,8 @@ REGLAS = {
         },
         "advertir": {"cliente_informado": "id_cliente IS NOT NULL"},
     },
-    "lineas_pedido": {
-        "fallar": {"id_linea_no_nula": "id_linea IS NOT NULL"},
+    "items_pedido": {
+        "fallar": {"id_item_no_nulo": "id_item IS NOT NULL"},
         "descartar": {
             "cantidad_positiva": "cantidad > 0",
             "precio_no_negativo": "precio_unitario >= 0",

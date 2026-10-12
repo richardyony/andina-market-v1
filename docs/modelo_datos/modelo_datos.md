@@ -1,6 +1,6 @@
 # Modelo de datos · Nivel 2 (transformación y modelado)
 
-Diseño de las etapas silver y gold. Se implementa con **Lakeflow Declarative Pipelines** en Python ([src/transformacion/](../src/transformacion/)) y se despliega con el mismo bundle que la ingesta.
+Diseño de las etapas silver y gold. Se implementa con **Lakeflow Declarative Pipelines** en Python, con **un notebook por entidad** ([src/transformacion/silver/](../../src/transformacion/silver/) y [src/transformacion/gold/](../../src/transformacion/gold/)), en dos pipelines (`pl_andina_silver`, `pl_andina_gold`) que ejecuta el mismo job diario después de la ingesta, todo en un solo bundle.
 
 ## 1. Etapas y responsabilidad de cada una
 
@@ -36,12 +36,12 @@ Bronze tiene, por tabla, la foto completa (`R`) y cada cambio (`I`, `U`, `D`). `
 | `clientes_historial` | `customers_raw` | `id_cliente` | **SCD2** sobre `segmento` | Atribuir cada venta al segmento que el cliente tenía **al comprar**. Solo `segmento` abre versión nueva: corregir un teléfono no es un cambio de negocio |
 | `productos` | `products_raw` | `id_producto` | SCD1 | El precio histórico ya vive en cada línea (`precio_unitario`) |
 | `pedidos` | `orders_raw` | `id_pedido` | SCD1 | Estado actual del pedido |
-| `lineas_pedido` | `order_items_raw` | `id_linea` | SCD1 | Incluye los DELETE de líneas |
+| `items_pedido` | `order_items_raw` | `id_item` | SCD1 | Incluye los DELETE de líneas |
 | `pagos` | `payments_raw` | `id_pago` | SCD1 | Estado actual del pago |
-| `pagos_historial` | `payments_raw` | `id_pago` | **SCD2** sobre `estado` | Recorrido `pendiente → aprobado → reembolsado`: tiempos de aprobación, reembolsos, intentos |
+| `pagos_historial_estados` | `payments_raw` | `id_pago` | **SCD2** sobre `estado` | Recorrido `pendiente → aprobado → reembolsado`: tiempos de aprobación, reembolsos, intentos |
 | `tickets` | `support_tickets_raw` | `id_ticket` | SCD1 | Incluye los DELETE de tickets |
 | `cuarentena` | todas | — | append | Filas que no pasan una regla, con la tabla y la regla. **Nada se descarta en silencio** |
-| `control_totales_pedido` | `pedidos` + `lineas_pedido` | `id_pedido` | vista materializada | Integridad entre cabecera y detalle (total ≠ suma de líneas, pedidos sin líneas) |
+| `control_totales_pedido` | `pedidos` + `items_pedido` | `id_pedido` | vista materializada | Integridad entre cabecera y detalle (total ≠ suma de líneas, pedidos sin líneas) |
 
 ### Nombres y tipos
 
@@ -51,7 +51,7 @@ Bronze tiene, por tabla, la foto completa (`R`) y cada cambio (`I`, `U`, `D`). `
 
 ## 3. Calidad de datos
 
-Reglas como código ([src/transformacion/reglas_calidad.py](../src/transformacion/reglas_calidad.py)). Tres acciones:
+Reglas como código ([src/transformacion/silver/reglas_calidad.py](../../src/transformacion/silver/reglas_calidad.py)). Tres acciones:
 
 | Acción | Cuándo | Efecto |
 |---|---|---|
@@ -59,7 +59,7 @@ Reglas como código ([src/transformacion/reglas_calidad.py](../src/transformacio
 | `drop` + **cuarentena** | El dato es inválido y no se puede corregir | No entra a silver; queda en `silver.cuarentena` con la regla que falló |
 | `warn` + **marca** | El dato es mejorable pero útil | Entra a silver con una columna `es_*` que lo señala; la métrica queda en el pipeline |
 
-Cada caso borde que siembra el generador ([log de la carga](../fuentes/logs/inicial_20261010_162156.json)) tiene su regla:
+Cada caso borde que siembra el generador ([log de la carga](../../fuentes/logs/inicial_20261010_162156.json)) tiene su regla:
 
 | Caso borde en la fuente | Regla en silver | Acción |
 |---|---|---|
@@ -70,7 +70,7 @@ Cada caso borde que siembra el generador ([log de la carga](../fuentes/logs/inic
 | Cliente duplicado (misma persona, dos cuentas) | Mismo `email_normalizado` en más de un `id_cliente` | `warn` + `es_posible_duplicado` (no se fusionan: requiere una regla de negocio de identidad) |
 | Producto sin descripción | `descripcion` nula | `warn` + `tiene_descripcion` (importa para el RAG del nivel 5) |
 | Total del pedido ≠ suma de sus líneas | `control_totales_pedido` | Se marca `es_total_descuadrado`; gold usa la suma de líneas para ventas |
-| Pedido sin líneas | `control_totales_pedido` | Se marca `es_sin_lineas` |
+| Pedido sin líneas | `control_totales_pedido` | Se marca `es_sin_items` |
 | Línea con pedido o producto aún no llegado | Integridad referencial contra silver | `warn` (con FK reales en la fuente, solo ocurre por orden de llegada) |
 | Cantidad ≤ 0, precio o monto negativo | Rangos válidos | `drop` + cuarentena |
 | Canal, estado, método de pago o prioridad fuera del dominio | Lista de valores permitidos | `drop` + cuarentena |
@@ -83,22 +83,22 @@ Cada caso borde que siembra el generador ([log de la carga](../fuentes/logs/inic
 ```
                        dim_fecha
                            │
- dim_cliente (SCD2) ── fact_ventas ── dim_producto
+ dim_clientes (SCD2) ── fact_ventas ── dim_productos
                            │
                        dim_canal
 
- dim_cliente ── fact_pagos ── dim_fecha
+ dim_clientes ── fact_pagos ── dim_fecha
                     │
                 (id_pedido → fact_ventas)
 ```
 
 | Tabla | Grano (una fila por…) | Contenido |
 |---|---|---|
-| `dim_cliente` | versión de cliente (SCD2) | `sk_cliente`, `id_cliente`, nombre, país, ciudad, `segmento`, `vigente_desde`, `vigente_hasta`, `es_vigente` |
-| `dim_producto` | producto | `sk_producto`, `id_producto`, SKU, nombre, categoría, precio actual, estado |
+| `dim_clientes` | versión de cliente (SCD2) | `sk_cliente`, `id_cliente`, nombre, país, ciudad, `segmento`, `vigente_desde`, `vigente_hasta`, `es_vigente` |
+| `dim_productos` | producto | `sk_producto`, `id_producto`, SKU, nombre, categoría, precio actual, estado |
 | `dim_fecha` | día | `sk_fecha` (AAAAMMDD), año, trimestre, mes, día de la semana, es fin de semana |
 | `dim_canal` | canal | `sk_canal`, canal (`web`, `app`, `tienda`) |
-| `fact_ventas` | **línea de pedido** | claves de las dimensiones, `id_pedido`, cantidad, precio unitario, descuento, `monto_linea`, estado del pedido |
+| `fact_ventas` | **línea de pedido** | claves de las dimensiones, `id_pedido`, cantidad, precio unitario, descuento, `monto_item`, estado del pedido |
 | `fact_pagos` | pago (estado actual) | claves, `id_pedido`, método, monto, estado, `n_cambios_estado`, minutos hasta aprobarse, `n_intentos_pago` del pedido |
 
 - **Grano de `fact_ventas` = línea:** permite ventas por producto y categoría y sumar sin duplicar.
@@ -110,4 +110,4 @@ Cada caso borde que siembra el generador ([log de la carga](../fuentes/logs/inic
 
 - **Delta Lake** en todas las capas, como tablas administradas de Unity Catalog en `andina_<env>.silver` y `andina_<env>.gold`.
 - **Liquid clustering en lugar de particiones:** con ~170 000 filas, particionar por fecha generaría miles de archivos diminutos. `CLUSTER BY` (por ejemplo `fact_ventas` por fecha y cliente) ordena los datos para las consultas frecuentes y se ajusta solo cuando el volumen crece.
-- **Pipeline serverless en modo `triggered`:** procesa lo nuevo y se apaga; corre como tarea del job, después de la ingesta.
+- **Pipelines serverless en modo `triggered`:** procesan lo nuevo y se apagan. Los ejecutan las tareas `transformacion_silver` y `transformacion_gold` del `job_andina_diario`, después de la ingesta.
