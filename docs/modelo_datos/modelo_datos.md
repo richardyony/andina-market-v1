@@ -59,6 +59,8 @@ Reglas como código ([src/transformacion/silver/reglas_calidad.py](../../src/tra
 | `drop` + **cuarentena** | El dato es inválido y no se puede corregir | No entra a silver; queda en `silver.cuarentena` con la regla que falló |
 | `warn` + **marca** | El dato es mejorable pero útil | Entra a silver con una columna `es_*` que lo señala; la métrica queda en el pipeline |
 
+Las reglas son **null-safe**: un valor nulo no cumple la regla (`COALESCE(regla, false)`), así el pipeline y la cuarentena siempre deciden lo mismo. Un `DELETE` CDC cumple todas: un borrado de la fuente nunca se descarta. Todo esto está probado en [tests/](../../tests/) con filas malas armadas a mano.
+
 Cada caso borde que siembra el generador ([log de la carga](../../fuentes/logs/inicial_20261010_162156.json)) tiene su regla:
 
 | Caso borde en la fuente | Regla en silver | Acción |

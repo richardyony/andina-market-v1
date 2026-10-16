@@ -1,0 +1,4 @@
+# Pruebas unitarias de silver (tests/): Spark local en tu PC, sin Databricks ni costo.
+# Requiere Java 17. Uso:  pip install -r requirements-dev.txt ; python -m pytest
+pyspark==3.5.3
+pytest==8.3.3

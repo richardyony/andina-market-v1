@@ -17,7 +17,7 @@
      catálogo → ubicación externa → credencial → Access Connector (identidad
      administrada) → rol sobre el storage.
 
-   Idempotente: todo usa IF NOT EXISTS. El job de bronze además recrea los
+   Idempotente: todo usa IF NOT EXISTS u OR REPLACE. El job de bronze además recrea los
    esquemas y Volumes que necesita (src/ingesta/nb_preparar_entorno.ipynb).
    ===================================================================== */
 
@@ -61,7 +61,52 @@ CREATE VOLUME IF NOT EXISTS andina_dev.bronze.checkpoints
 
 -- 6. Permisos (a grupos, nunca a personas). Requiere que el grupo de Entra ID esté
 --    sincronizado en la cuenta de Databricks.
+--    Ingeniería: todas las capas (necesita el dato real para limpiar y deduplicar).
 GRANT USE CATALOG, USE SCHEMA, SELECT, MODIFY, CREATE TABLE, READ VOLUME, WRITE VOLUME
   ON CATALOG andina_dev TO `grp-andina-data-engineers`;
 
--- Para prd: repetir los pasos 2 a 6 con loc_andina_prd, andina_prd y standinaprdcus001.
+--    Analítica: solo gold, y con las columnas personales enmascaradas (paso 7).
+--    Sin permisos sobre landing, bronze ni silver: ahí está el dato crudo sin máscara.
+GRANT USE CATALOG ON CATALOG andina_dev TO `grp-andina-analistas`;
+GRANT USE SCHEMA, SELECT ON SCHEMA andina_dev.gold TO `grp-andina-analistas`;
+
+--    Sin BROWSE para toda la cuenta: quien no tiene un GRANT no ve ni los nombres
+--    de los esquemas y tablas del catálogo.
+REVOKE BROWSE ON CATALOG andina_dev FROM `account users`;
+
+-- 7. Gobierno de datos personales: máscaras de columna.
+--    Grupos (de cuenta, creados en Settings → Identity and access → Groups):
+--      grp-andina-analistas     → consume gold (Consumer + Databricks SQL access)
+--      grp-andina-pii-lectores  → ve el dato personal real; no da acceso a nada por sí
+--                                 mismo, solo lo consultan las funciones de máscara
+--    Las funciones viven en su propio esquema: quien cambia una máscara decide quién
+--    ve PII, y eso no debe estar al alcance de quien puede escribir en las capas.
+--    Las aplica el pipeline de gold en el esquema de la tabla (MASK en @dlt.table,
+--    src/transformacion/gold/dim_clientes.ipynb): quedan versionadas en el bundle.
+--    Los analistas no necesitan EXECUTE sobre las funciones.
+CREATE SCHEMA IF NOT EXISTS andina_dev.gobierno
+  COMMENT 'Funciones de gobierno: máscaras de datos personales';
+
+-- ana.quispe@mail.com → ***@mail.com (se conserva el dominio, útil para analítica)
+CREATE OR REPLACE FUNCTION andina_dev.gobierno.mask_email(email STRING) RETURNS STRING
+COMMENT 'Email completo solo para grp-andina-pii-lectores'
+RETURN CASE WHEN is_account_group_member('grp-andina-pii-lectores') THEN email
+            ELSE concat('***@', split_part(email, '@', 2)) END;
+
+-- +51 999 111 222 → ***-222
+CREATE OR REPLACE FUNCTION andina_dev.gobierno.mask_telefono(tel STRING) RETURNS STRING
+COMMENT 'Teléfono completo solo para grp-andina-pii-lectores'
+RETURN CASE WHEN is_account_group_member('grp-andina-pii-lectores') THEN tel
+            ELSE concat('***-', right(tel, 3)) END;
+
+-- Quispe → Q***
+CREATE OR REPLACE FUNCTION andina_dev.gobierno.mask_nombre(txt STRING) RETURNS STRING
+COMMENT 'Nombre completo solo para grp-andina-pii-lectores'
+RETURN CASE WHEN is_account_group_member('grp-andina-pii-lectores') THEN txt
+            ELSE concat(left(txt, 1), '***') END;
+
+-- Verificación: dentro del grupo salen completos; fuera, enmascarados.
+--   SELECT andina_dev.gobierno.mask_email('ana.quispe@mail.com'), andina_dev.gobierno.mask_nombre('Quispe');
+--   SHOW GRANTS ON SCHEMA andina_dev.gold;
+
+-- Para prd: repetir los pasos 2 a 7 con loc_andina_prd, andina_prd y standinaprdcus001.

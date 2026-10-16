@@ -18,7 +18,8 @@
  Regla general: las filas _op = 'D' (borrados CDC) nunca se descartan, para no
  perder un DELETE de la fuente por una regla de contenido.
  Autoría      : Richard Huamán · con asistencia de IA (Claude)
- Versión      : 1.0 · 2026-10-12
+ Versión      : 1.1 · 2026-10-14 · reglas null-safe (un NULL no cumple la regla) y regex de
+                email escapada para SQL (antes rechazaba todo email con la letra «s»)
 ===============================================================================
 """
 
@@ -52,6 +53,12 @@ def _en(valores) -> str:
     return ", ".join(f"'{v}'" for v in valores)
 
 
+def _texto_sql(texto: str) -> str:
+    """Texto listo para ir entre comillas en SQL. Spark SQL interpreta las barras de sus
+    literales (\\s pasaría a ser una 's'), así que se duplican para que el patrón llegue intacto."""
+    return texto.replace("\\", "\\\\").replace("'", "\\'")
+
+
 # --- Reglas por tabla ----------------------------------------------------------
 # Cada regla es: nombre → expresión SQL que debe ser VERDADERA para un dato válido.
 REGLAS = {
@@ -62,7 +69,7 @@ REGLAS = {
             "pais_valido": f"codigo_pais IN ({_en(PAISES)})",
         },
         "advertir": {
-            "email_valido": f"email_normalizado RLIKE '{REGEX_EMAIL}'",
+            "email_valido": f"email_normalizado RLIKE '{_texto_sql(REGEX_EMAIL)}'",
             "telefono_informado": "telefono IS NOT NULL",
             "ciudad_informada": "ciudad IS NOT NULL",
         },
@@ -116,9 +123,15 @@ REGLAS = {
 
 
 def reglas(tabla: str, accion: str, proteger_borrados: bool = True) -> dict:
-    """Reglas de una tabla para una acción. Con proteger_borrados, un DELETE CDC
-    (_op = 'D') siempre las cumple: un borrado de la fuente nunca se pierde."""
-    base = REGLAS[tabla][accion]
+    """Reglas de una tabla para una acción, listas para expectations y cuarentena.
+
+    Null-safe: en SQL, `NULL IN (...)` o `NULL >= 0` no dan FALSE sino NULL. Con
+    COALESCE(..., false) un valor nulo NO cumple la regla, y así el pipeline y la
+    cuarentena deciden lo mismo (sin esto, una fila podía descartarse sin llegar
+    a la cuarentena).
+    Con proteger_borrados, un DELETE CDC (_op = 'D') siempre las cumple: un
+    borrado de la fuente nunca se pierde."""
+    base = {nombre: f"COALESCE(({expr}), false)" for nombre, expr in REGLAS[tabla][accion].items()}
     if not proteger_borrados:
-        return dict(base)
-    return {nombre: f"(_op = 'D') OR ({expr})" for nombre, expr in base.items()}
+        return base
+    return {nombre: f"(_op = 'D') OR {expr}" for nombre, expr in base.items()}

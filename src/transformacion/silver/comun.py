@@ -19,14 +19,14 @@
 
  Parámetros   : catalogo (configuración del pipeline, la pone el bundle)
  Autoría      : Richard Huamán · con asistencia de IA (Claude)
- Versión      : 2.2 · 2026-10-12 · un notebook por entidad (antes silver.py)
+ Versión      : 2.3 · 2026-10-14 · limpieza de email y ciudad como funciones probables (tests/)
 ===============================================================================
 """
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
-from reglas_calidad import reglas
+from reglas_calidad import CIUDADES_CANONICAS, reglas
 
 spark = SparkSession.getActiveSession()
 CATALOGO = spark.conf.get("catalogo")
@@ -58,6 +58,26 @@ def con_secuencia(df):
                                                  F.coalesce("_seqval", F.lit("")).alias("_seqval"))))
 
 
+MAPA_CIUDADES = F.create_map(*[F.lit(x) for par in CIUDADES_CANONICAS.items() for x in par])
+
+
+def normalizar_email(col):
+    """Email comparable: sin espacios alrededor y en minúsculas."""
+    return F.lower(F.trim(col))
+
+
+def email_canonico(email_norm):
+    """Email sin puntos en la parte local: juan.perez@ y juanperez@ son la misma persona.
+    Se usa solo para detectar posibles duplicados, no para contactar al cliente."""
+    partes = F.split(email_norm, "@")
+    return F.concat(F.regexp_replace(partes.getItem(0), r"\.", ""), F.lit("@"), partes.getItem(1))
+
+
+def ciudad_canonica(col):
+    """Ciudad en su forma canónica (STGO → Santiago); si no está en el mapa, la original sin espacios."""
+    return F.coalesce(MAPA_CIUDADES[F.upper(F.trim(col))], F.trim(col))
+
+
 def parametros_cdc(clave: str, historial_de: list | None = None) -> dict:
     """Parámetros de AUTO CDC comunes a todas las entidades.
     Sin historial_de → SCD1 (estado actual). Con historial_de → SCD2 sobre esas columnas."""
@@ -71,7 +91,7 @@ def parametros_cdc(clave: str, historial_de: list | None = None) -> dict:
 def filas_en_cuarentena(df, entidad: str, clave: str):
     """Filas de la vista que no cumplen una regla de descarte, con la lista de reglas
     incumplidas y la fila original en JSON. Nada se descarta en silencio."""
-    reglas_descartar = reglas(entidad, "descartar")
+    reglas_descartar = reglas(entidad, "descartar")   # null-safe: NULL cuenta como incumplida
     fallidas = F.array_compact(F.array(*[F.when(~F.expr(expr), F.lit(nombre))
                                          for nombre, expr in reglas_descartar.items()]))
     return (df.withColumn("reglas_fallidas", fallidas)

@@ -47,7 +47,7 @@ Azure SQL (sqldb-andinamarket-cus-001)                 Unity Catalog · <catalog
 | `rg-andinamarket-dev-cus-001` | ADLS Gen2 `standinadevcus001` · Key Vault `kv-andina-dev-cus-001` | Datos y secretos de dev |
 | `rg-andinamarket-prd-cus-001` | ADLS Gen2 `standinaprdcus001` · Key Vault `kv-andina-prd-cus-001` · lock `CanNotDelete` | Datos y secretos de prd |
 
-**Unity Catalog:** credencial `cred_andinamarket` (identidad administrada del Access Connector, sin claves) → ubicaciones externas `loc_andina_dev` / `loc_andina_prd` → catálogos `andina_dev` / `andina_prd`, cada uno sobre el storage de su entorno, con esquemas `landing`, `control`, `bronze`, `silver` y `gold`.
+**Unity Catalog:** credencial `cred_andinamarket` (identidad administrada del Access Connector, sin claves) → ubicaciones externas `loc_andina_dev` / `loc_andina_prd` → catálogos `andina_dev` / `andina_prd`, cada uno sobre el storage de su entorno, con esquemas `landing`, `control`, `bronze`, `silver`, `gold` y `gobierno` (funciones de máscara de datos personales).
 
 ---
 
@@ -79,6 +79,7 @@ Cada decisión con su porqué y la alternativa que descarté.
 | D-21 | **Estrella en gold con grano de línea y claves sustitutas deterministas** | El grano de línea permite analizar por producto sin duplicar; la unión a la versión SCD2 vigente usa la fecha del pedido; las claves por hash hacen que recalcular gold dé el mismo resultado | Tabla ancha desnormalizada: más simple, pero repite atributos y no conserva la historia de segmento |
 | D-22 | **Liquid clustering en lugar de particiones** | Con ~170 000 filas, particionar por fecha produciría miles de archivos diminutos; `CLUSTER BY` ordena por las columnas de consulta y se adapta al crecer | Particionar por fecha o país: problema de archivos pequeños |
 | D-23 | **Un solo bundle con dos targets (dev, prd) y un job diario con una tarea por capa** (preparar → bronze → silver → gold); silver y gold en pipelines separados, con un notebook por entidad | Un despliegue y un grafo donde se ve cada capa; el job referencia los pipelines directamente; el mismo código va a dev y prd cambiando solo variables. La separación por capa vive en el código, los pipelines y las tareas | Tres bundles encadenados por disparadores de actualización de tabla: cada capa se despliega por separado, pero son tres horarios y configuraciones repetidas para un mismo equipo |
+| D-24 | **Datos personales: permisos por capa + máscaras de columna en gold** | Landing, bronze y silver tienen el dato real y solo los ve ingeniería (los pipelines lo necesitan: la detección de duplicados agrupa por email). Gold es la salida al negocio: analítica entra con `GRANT` solo a gold y ve `nombre`, `apellido` y `email` enmascarados salvo que esté en `grp-andina-pii-lectores`. Las máscaras son funciones de Unity Catalog en su propio esquema (`gobierno`) y se declaran en el esquema de la tabla del pipeline, así quedan versionadas en el bundle | Enmascarar desde silver: gold leería datos ya enmascarados y rompería duplicados y cruces. Copias anonimizadas de cada tabla: duplican almacenamiento y se desincronizan |
 | D-16 | **Control de costos** | SQL warehouse en 2X-Small, auto-stop 5 min y escalado 1/1; jobs serverless en modo STANDARD; schedules en pausa en dev | Valores por defecto: en una versión anterior el SQL warehouse explicó el 66 % del gasto |
 
 ---
@@ -178,14 +179,60 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
 | Validación | Resultado |
 |---|---|
 | Silver cuadra con bronze (claves vivas tras aplicar todos los cambios) | ✅ 6 de 6 tablas: clientes 5 095, productos 400, pedidos 40 150, ítems 79 207, pagos 42 254, tickets 6 025 |
-| Cuarentena | 0 filas: la fuente tiene `CHECK` de dominio; las reglas protegen ante datos futuros |
+| Cuarentena | 0 filas: la fuente tiene `CHECK` de dominio; que las reglas actúan ante datos malos lo prueban los tests (más abajo) |
 | Integridad cabecera-detalle | 119 pedidos con total ≠ suma de ítems y 38 pedidos sin ítems, los mismos que sembró el generador; 0 filas huérfanas |
 | SCD2 | Pago 42213: `pendiente → aprobado → reembolsado`; cliente 38: `regular → frecuente`. 29 versiones extra de clientes y 157 de pagos por el día simulado |
 | Gold cuadra con silver | 79 207 ítems y 8 956 971,97 USD en ambas capas; 0 ventas sin cliente o sin producto |
 | Posibles duplicados | 154 clientes marcados (cuentas duplicadas y sus originales) |
 | Por qué SCD2 | Ventas VIP por segmento al comprar: 2 889 760 USD; por segmento actual: 2 894 763 USD |
 | `job_andina_diario` con el bundle único (4 tareas) | ✅ SUCCESS en 26,1 min: preparar 7,5 · bronze 3,0 · silver 9,7 · gold 5,9 (reconstrucción completa de silver y gold desde bronze) |
-| Idempotencia y reproducibilidad | Corridas repetidas sin cambios en la fuente y reconstrucción completa tras reorganizar el código: silver y gold idénticos (mismos conteos y 8 956 971,97 USD) |
+| Idempotencia y reproducibilidad | Corridas repetidas sin cambios en la fuente y reconstrucciones completas (12/10 tras reorganizar el código, 14/10 tras corregir las reglas): silver y gold idénticos (mismos conteos y 8 956 971,97 USD) |
+
+### Calidad de datos: pruebas y métricas reales
+
+**Pruebas unitarias** ([tests/](tests/), 154 pruebas, ~20 s con Spark local, sin costo de Databricks: `python -m pytest`). Como la fuente tiene `CHECK` de dominio, en la carga real la cuarentena quedó en 0 filas; las pruebas demuestran con filas armadas a mano que las reglas actúan cuando llega un dato malo:
+
+| Archivo | Qué demuestra |
+|---|---|
+| [test_reglas_calidad.py](tests/test_reglas_calidad.py) | Cada regla rompe exactamente con su acción (fallar, descartar, advertir); un valor nulo en un campo con dominio se descarta; un `DELETE` CDC nunca se descarta; los dominios de silver son **idénticos** a los `CHECK` de [01_ddl_tablas.sql](fuentes/01_ddl_tablas.sql) |
+| [test_cuarentena.py](tests/test_cuarentena.py) | «Nada se descarta en silencio»: en las 6 entidades, silver + cuarentena = todo lo que llegó, sin solaparse; la cuarentena nombra todas las reglas incumplidas y guarda la fila original con su trazabilidad |
+| [test_limpieza.py](tests/test_limpieza.py) | Email normalizado y canónico (duplicados escritos distinto), ciudades canónicas, orden de los cambios CDC (`pendiente → aprobado → reembolsado` en un mismo commit) |
+
+**Dos defectos que encontraron las pruebas** (corregidos en [reglas_calidad.py](src/transformacion/silver/reglas_calidad.py) 1.1, con pruebas de regresión):
+1. **La regex de email se escribía sin escapar dentro de SQL**: Spark SQL convierte `\s` en `s`, así que la expectation marcaba como inválido todo email con la letra «s» (`luis@mail.com`). La columna `es_email_valido` (API de Python, sin parser SQL) siempre estuvo bien; lo falso era la métrica. En el event log del pipeline: **8 277 incumplimientos el 12/10 → 0 el 14/10**.
+2. **Nulos en un limbo**: `NULL IN (...)` da NULL, no FALSE; una fila con segmento nulo podía quedar fuera de silver sin llegar a la cuarentena. Ahora cada regla es *null-safe* (`COALESCE(regla, false)`) y una prueba verifica que ninguna devuelve NULL.
+
+**Métricas reales de silver** (14/10/2026, dev): lo que la limpieza corrigió y lo que las reglas de *advertir* dejaron pasar marcado.
+
+| Qué | Filas | Tratamiento |
+|---|---:|---|
+| Emails con mayúsculas o espacios | 233 de 5 095 clientes | Normalizados (`email_normalizado`); el original queda en `email_original` |
+| Ciudades mal escritas | 237 | Llevadas a su forma canónica (`Lima Metropolitana`, `lima `, `LIMA` → Lima; `BOGOTA D.C.` → Bogotá; `Stgo` → Santiago…); el original queda en `ciudad_original` |
+| Ciudades nulas · teléfonos nulos | 138 · 99 | Entran; regla `ciudad_informada` / `telefono_informado` |
+| Emails con formato inválido | 0 | Regla `email_valido` y columna `es_email_valido` |
+| Posibles clientes duplicados | 154 | Se marcan en `gold.dim_clientes.es_posible_duplicado`, no se fusionan (ver supuestos) |
+| Productos sin descripción | 16 de 400 | Entran; `tiene_descripcion = false` |
+| Tickets sin cuerpo | 106 de 6 025 | Entran; `tiene_cuerpo = false` |
+| Pagos aprobados sin referencia de transacción | 2 509 de 42 254 | Entran; regla `referencia_informada_si_aprobado` |
+| Cuarentena | 0 | La fuente valida dominios; las reglas protegen ante otras fuentes o cambios (probado en `tests/`) |
+
+En el event log cada expectation se cuenta una vez por flujo que lee la vista (por ejemplo, `limpio_clientes` la leen `clientes`, `clientes_historial` y la cuarentena), por eso allí los totales son múltiplos de las filas de bronze.
+
+### Gobierno de datos personales
+
+| Capa | Quién entra | Qué ve |
+|---|---|---|
+| `landing`, `bronze`, `silver` | `grp-andina-data-engineers` | Dato real (los pipelines lo necesitan) |
+| `gold` | `grp-andina-analistas` (y ingeniería) | `nombre`, `apellido`, `email_normalizado` enmascarados; segmento, ciudad, país y banderas completos |
+| `gold`, con `grp-andina-pii-lectores` | Quien tenga una necesidad justificada | Dato real |
+
+Objetos en [infra/04_unity_catalog_objetos.sql](infra/04_unity_catalog_objetos.sql) (pasos 6 y 7); máscaras declaradas en [dim_clientes.ipynb](src/transformacion/gold/dim_clientes.ipynb). Misma consulta sobre `gold.dim_clientes`, dentro y fuera de `grp-andina-pii-lectores` (14/10/2026):
+
+![Con el grupo: datos completos](docs/evidencias/mascara_dim_clientes_con_grupo_pii_2026-10-14.png)
+![Sin el grupo: S***, C***, ***@hotmail.com](docs/evidencias/mascara_dim_clientes_sin_grupo_pii_2026-10-14.png)
+
+El analista sigue pudiendo analizar por segmento, ciudad o proveedor de email, pero no identificar a la persona. Límites declarados en los supuestos (sección 7).
+
 
 ---
 
@@ -204,7 +251,7 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
    python .\fuentes\02_generar_datos_andina.py --modo inicial
    # 3) ejecutar fuentes/03_habilitar_cdc.sql
    ```
-5. **Unity Catalog del ambiente** (una vez): [infra/04_unity_catalog_objetos.sql](infra/04_unity_catalog_objetos.sql).
+5. **Unity Catalog del ambiente** (una vez): crear los grupos `grp-andina-analistas` y `grp-andina-pii-lectores` (Settings → Identity and access → Groups) y ejecutar [infra/04_unity_catalog_objetos.sql](infra/04_unity_catalog_objetos.sql): esquemas, Volumes, permisos y funciones de máscara.
 6. **Desplegar y ejecutar** (desde la raíz del repositorio):
    ```powershell
    databricks bundle validate -t dev
@@ -212,6 +259,11 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
    databricks bundle run job_andina_diario -t dev   # 1.ª vez: foto completa → silver → gold
    .\fuentes\simular_dia.ps1                         # un día de cambios en la fuente
    databricks bundle run job_andina_diario -t dev   # incremental: solo los cambios
+   ```
+7. **Pruebas unitarias** (en tu PC, requiere Java 17):
+   ```powershell
+   pip install -r requirements-dev.txt
+   python -m pytest        # 154 pruebas de reglas, cuarentena y limpieza
    ```
 8. **Verificar:** `src/validacion/nb_validacion_bronze_sqlserver.ipynb` (ingesta) y `src/validacion/nb_validacion_silver_gold.ipynb` (silver y gold), o consultar `andina_dev.control.ctl_ejecuciones`.
 
@@ -226,6 +278,8 @@ Promover a producción es `databricks bundle deploy -t prd`, sin cambiar código
 - **Identidad de ejecución:** el bundle corre con el usuario que despliega. En producción real se usaría `run_as` con un service principal dedicado.
 - **Red:** Azure SQL y ADLS con acceso público restringido por firewall y autenticación. En producción, Private Endpoints.
 - **Redundancia:** storage LRS por costo; en producción, ZRS o GRS.
+- **Clientes duplicados: se marcan, no se fusionan.** Mismo email canónico, o mismo nombre, apellido y teléfono, es una *sospecha*; fusionar dos cuentas cambia el historial de compras de una persona y es una decisión de negocio (o de un proceso de datos maestros), no del pipeline. Gold expone `es_posible_duplicado` para que analítica decida y nada se pierde si la sospecha era falsa.
+- **Límites del enmascaramiento:** (1) el storage de Azure está fuera de Unity Catalog: en producción, solo el Access Connector tiene roles de datos sobre ADLS; (2) un administrador puede cambiar una máscara, y queda registrado en `system.access.audit`; (3) el texto libre de los tickets (`cuerpo`) puede contener datos personales dentro del texto: una máscara de columna no sirve ahí, y antes de usarlo para RAG o ML iría una columna redactada (regex o `ai_mask()`); queda como diseño para el nivel 5.
 - **Streaming y SAP:** solo diseño, como pide el reto.
 
 ---
@@ -238,6 +292,7 @@ Usé asistentes de IA en todo el proyecto, como permite el reto. Las decisiones,
 - **Claude Code** (asistente en VS Code): me guio en la creación de la infraestructura (que hice yo en el portal), verificó configuraciones y costos con Azure CLI y Databricks CLI, preparó el bundle y el job, organizó el repositorio y redactó la documentación a partir de mis decisiones.
 - **Nivel 2 (pipeline, reglas, modelo y validación):** el diseño de etapas, las decisiones de SCD y alcance las tomé yo; Claude Code generó el código del pipeline, las reglas y el notebook de validación a partir de esas decisiones y de los casos borde de mi generador, y lo validamos contra los datos reales (cuadres bronze → silver → gold).
 - **Organización final (un bundle con dos targets, un job diario con una tarea por capa, un notebook por entidad):** la definí yo después de evaluar también tres bundles separados; Claude Code reorganizó el código validado, generó los notebooks explicados y reconstruyó silver y gold desde bronze para volver a validar.
+- **Pruebas unitarias de silver:** decidí probar las reglas con filas malas armadas a mano porque la cuarentena real estaba vacía; Claude Code escribió las pruebas, que encontraron los dos defectos descritos en la sección 5 (regex de email sin escapar en SQL y reglas no null-safe). Los corregimos, reconstruimos silver y gold en dev y comprobamos los mismos conteos y montos.
 - **Lo que detecté y corregí al revisar:** el job desplegado con el bundle falló por un paréntesis sobrante en un `MERGE` que en la ejecución manual no se había manifestado; se reemplazó por un DataFrame con esquema explícito. También se corrigieron rutas relativas de los logs de los generadores y un bundle de prd que inicialmente usaba una carpeta editable por todos los usuarios.
 
 ---
@@ -256,6 +311,7 @@ src/                          CÓMO se procesa (código)
 │   ├── silver/               un notebook por entidad (slv_*.ipynb) + comun.py + reglas_calidad.py
 │   └── gold/                 un notebook por tabla (dim_*.ipynb, fact_*.ipynb) + comun_gold.py
 └── validacion/               pruebas manuales (no van en los jobs)
+tests/                        pruebas unitarias de silver (pytest + Spark local) · pytest.ini · requirements-dev.txt
 infra/                        objetos de Unity Catalog (una vez por ambiente)
 fuentes/                      sistema de origen simulado: DDL, generador, CDC, simulador, clickstream, logs
 sample_data/                  muestra .jsonl del clickstream de la app
