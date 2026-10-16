@@ -12,7 +12,7 @@ Plataforma de datos sobre **Azure + Databricks** para Andina Market, un retailer
 | 2 · Transformación | Lakeflow Declarative Pipelines: silver con AUTO CDC (SCD1/SCD2), reglas de calidad y cuarentena; gold en estrella | ✅ |
 | 3 a 6 | Capa de KPIs + BI, feature store, RAG, agente | ⏳ |
 
-Prioricé **profundidad en los niveles 0 a 2** antes de avanzar, como sugiere el reto.
+Prioricé **profundidad en los niveles 0 a 2** antes de avanzar, como sugiere el reto. Índice de lo que pide el reto por nivel y dónde está: [nivel 1](ENTREGABLES_NIVEL_1.md) · [nivel 2](ENTREGABLES_NIVEL_2.md).
 
 ---
 
@@ -318,7 +318,8 @@ sample_data/                  muestra .jsonl del clickstream de la app
 docs/
 ├── arquitectura/             diagrama de arquitectura, streaming y SAP (.jpg + .excalidraw)
 ├── modelo_datos/             modelo de datos del nivel 2 (documento + diagrama)
-├── evidencias/               evidencias de ejecución
+├── evidencias/               evidencias de ejecución (job, máscaras)
+├── respuestas_nivel_1_ingesta.docx · respuestas_nivel_2_transformacion.docx
 ├── diseno_streaming.md · diseno_sap.md · estandar_documentacion.md
-entregables_n1/ · entregables_n2/   copias de lo entregado por nivel
+ENTREGABLES_NIVEL_1.md · ENTREGABLES_NIVEL_2.md   índice por nivel: lo que pide el reto y dónde está
 ```

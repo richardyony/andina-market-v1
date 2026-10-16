@@ -1,4 +1,0 @@
-# Generador de datos sintéticos (fuentes/02_generar_datos_andina.py), se ejecuta en tu PC.
-# El modo --dry-run no necesita dependencias externas; la escritura en Azure SQL usa pyodbc
-# con el Microsoft ODBC Driver 18 for SQL Server.
-pyodbc>=5.1

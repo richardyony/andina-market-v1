@@ -28,8 +28,7 @@ sync:
     - docs/**
     - fuentes/**
     - sample_data/**
-    - entregables_n1/**
-    - entregables_n2/**
+    - tests/**
 
 # -----------------------------------------------------------------------------
 # Variables: lo ÚNICO que cambia entre ambientes
