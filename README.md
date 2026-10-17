@@ -18,9 +18,9 @@ Prioricé **profundidad en los niveles 0 a 2** antes de avanzar, como sugiere el
 
 ## 1. Arquitectura
 
-![Arquitectura de Andina Market](docs/arquitectura/andina-market-arquitectura-v4.3.jpg)
+![Arquitectura de Andina Market](docs/arquitectura/andina-market-arquitectura-iconos.png)
 
-Fuente editable: [andina-market-arquitectura-v4.3.excalidraw](docs/arquitectura/andina-market-arquitectura-v4.3.excalidraw) (ábrela en excalidraw.com). Versión anterior, más detallada: [v3.1](docs/arquitectura/andina-market-arquitectura-v3.1.excalidraw). Línea continua: implementado; discontinua: diseño o siguiente nivel.
+Fuente editable: [andina-market-arquitectura-iconos.excalidraw](docs/arquitectura/andina-market-arquitectura-iconos.excalidraw) (excalidraw.com, con los iconos incrustados) o [.drawio](docs/arquitectura/andina-market-arquitectura-iconos.drawio) (app.diagrams.net). Línea continua: implementado; discontinua: diseño o siguiente nivel. Versiones anteriores: [v4.3](docs/arquitectura/andina-market-arquitectura-v4.3.excalidraw) y [v3.1](docs/arquitectura/andina-market-arquitectura-v3.1.excalidraw), más detallada.
 
 ```
 Azure SQL (sqldb-andinamarket-cus-001)                 Unity Catalog · <catalogo> = andina_dev | andina_prd
@@ -316,7 +316,7 @@ infra/                        objetos de Unity Catalog (una vez por ambiente)
 fuentes/                      sistema de origen simulado: DDL, generador, CDC, simulador, clickstream, logs
 sample_data/                  muestra .jsonl del clickstream de la app
 docs/
-├── arquitectura/             diagrama de arquitectura, streaming y SAP (.jpg + .excalidraw)
+├── arquitectura/             diagrama de arquitectura con iconos, streaming y SAP (.png/.jpg + .excalidraw)
 ├── modelo_datos/             modelo de datos del nivel 2 (documento + diagrama)
 ├── evidencias/               evidencias de ejecución (job, máscaras)
 ├── respuestas_nivel_1_ingesta.docx · respuestas_nivel_2_transformacion.docx
