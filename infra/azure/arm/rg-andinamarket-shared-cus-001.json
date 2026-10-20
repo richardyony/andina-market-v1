@@ -1,0 +1,74 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {},
+  "resources": [
+    {
+      "apiVersion": "2026-01-01",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "location": "centralus",
+      "name": "dbac-andinamarket-cus-001",
+      "properties": {},
+      "tags": {
+        "entorno": "shared",
+        "owner": "rhuaman",
+        "proyecto": "andinamarket"
+      },
+      "type": "Microsoft.Databricks/accessConnectors"
+    },
+    {
+      "apiVersion": "2026-01-01",
+      "location": "centralus",
+      "name": "dbw-andinamarket-cus-001",
+      "properties": {
+        "authorizations": [
+          {
+            "principalId": "9a74af6f-d153-4348-988a-e2672920bee9",
+            "roleDefinitionId": "8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
+          }
+        ],
+        "computeMode": "Hybrid",
+        "createdBy": {},
+        "defaultCatalog": {
+          "initialType": "UnityCatalog"
+        },
+        "managedResourceGroupId": "/subscriptions/54aeed2e-7148-44e2-ad5c-e53d863a8b40/resourceGroups/rg-andinamarket-dbw-managed-cus-001",
+        "parameters": {
+          "enableNoPublicIp": {
+            "type": "Bool",
+            "value": true
+          },
+          "prepareEncryption": {
+            "type": "Bool",
+            "value": false
+          },
+          "requireInfrastructureEncryption": {
+            "type": "Bool",
+            "value": false
+          },
+          "storageAccountName": {
+            "type": "String",
+            "value": "dbstoragezfiu27hmmjgfu"
+          },
+          "storageAccountSkuName": {
+            "type": "String",
+            "value": "Standard_ZRS"
+          }
+        },
+        "updatedBy": {}
+      },
+      "sku": {
+        "name": "premium"
+      },
+      "tags": {
+        "entorno": "shared",
+        "owner": "rhuaman",
+        "proyecto": "andinamarket"
+      },
+      "type": "Microsoft.Databricks/workspaces"
+    }
+  ],
+  "variables": {}
+}

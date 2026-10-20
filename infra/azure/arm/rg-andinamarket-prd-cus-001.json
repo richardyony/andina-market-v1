@@ -1,0 +1,226 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {},
+  "resources": [
+    {
+      "apiVersion": "2026-03-01-preview",
+      "location": "centralus",
+      "name": "kv-andina-prd-cus-001",
+      "properties": {
+        "accessPolicies": [
+          {
+            "objectId": "955ada90-5585-484e-bf0f-a1f52aeb4ed4",
+            "permissions": {
+              "secrets": [
+                "get",
+                "list"
+              ]
+            },
+            "tenantId": "d1a7fb8d-5ef8-4536-8e37-229e30665b9b"
+          }
+        ],
+        "enableRbacAuthorization": true,
+        "enableSoftDelete": true,
+        "enabledForDeployment": false,
+        "enabledForDiskEncryption": false,
+        "enabledForTemplateDeployment": false,
+        "networkAcls": {
+          "bypass": "None",
+          "defaultAction": "Allow",
+          "ipRules": [],
+          "virtualNetworkRules": []
+        },
+        "provisioningState": "Succeeded",
+        "publicNetworkAccess": "Enabled",
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "softDeleteRetentionInDays": 7,
+        "tenantId": "d1a7fb8d-5ef8-4536-8e37-229e30665b9b",
+        "vaultUri": "https://kv-andina-prd-cus-001.vault.azure.net/"
+      },
+      "tags": {
+        "entorno": "prd",
+        "owner": "rhuaman",
+        "proyecto": "andinamarket"
+      },
+      "type": "Microsoft.KeyVault/vaults"
+    },
+    {
+      "apiVersion": "2026-06-01",
+      "kind": "StorageV2",
+      "location": "centralus",
+      "name": "standinaprdcus001",
+      "properties": {
+        "accessTier": "Hot",
+        "allowBlobPublicAccess": false,
+        "allowCrossTenantDelegationSas": false,
+        "allowCrossTenantReplication": false,
+        "allowSharedKeyAccess": true,
+        "defaultToOAuthAuthentication": true,
+        "encryption": {
+          "keySource": "Microsoft.Storage",
+          "services": {
+            "blob": {
+              "enabled": true,
+              "keyType": "Account"
+            },
+            "file": {
+              "enabled": true,
+              "keyType": "Account"
+            }
+          }
+        },
+        "isHnsEnabled": true,
+        "isSftpEnabled": false,
+        "minimumTlsVersion": "TLS1_2",
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "defaultAction": "Allow",
+          "ipRules": [],
+          "ipv6Rules": [],
+          "virtualNetworkRules": []
+        },
+        "publicNetworkAccess": "Enabled",
+        "supportsHttpsTrafficOnly": true
+      },
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "tags": {
+        "entorno": "prd",
+        "owner": "rhuaman",
+        "proyecto": "andinamarket"
+      },
+      "type": "Microsoft.Storage/storageAccounts"
+    },
+    {
+      "apiVersion": "2026-03-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', 'kv-andina-prd-cus-001')]"
+      ],
+      "location": "centralus",
+      "name": "kv-andina-prd-cus-001/sql-password",
+      "properties": {
+        "attributes": {
+          "enabled": true
+        }
+      },
+      "type": "Microsoft.KeyVault/vaults/secrets"
+    },
+    {
+      "apiVersion": "2026-03-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', 'kv-andina-prd-cus-001')]"
+      ],
+      "location": "centralus",
+      "name": "kv-andina-prd-cus-001/sql-usuario",
+      "properties": {
+        "attributes": {
+          "enabled": true
+        }
+      },
+      "type": "Microsoft.KeyVault/vaults/secrets"
+    },
+    {
+      "apiVersion": "2026-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', 'standinaprdcus001')]"
+      ],
+      "name": "standinaprdcus001/default",
+      "properties": {
+        "containerDeleteRetentionPolicy": {
+          "days": 7,
+          "enabled": true
+        },
+        "cors": {
+          "corsRules": []
+        },
+        "deleteRetentionPolicy": {
+          "allowPermanentDelete": false,
+          "days": 7,
+          "enabled": true
+        },
+        "staticWebsite": {
+          "enabled": false
+        }
+      },
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "type": "Microsoft.Storage/storageAccounts/blobServices"
+    },
+    {
+      "apiVersion": "2026-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', 'standinaprdcus001')]"
+      ],
+      "name": "standinaprdcus001/default",
+      "properties": {
+        "cors": {
+          "corsRules": []
+        },
+        "protocolSettings": {
+          "smb": {}
+        },
+        "shareDeleteRetentionPolicy": {
+          "days": 7,
+          "enabled": true
+        }
+      },
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "type": "Microsoft.Storage/storageAccounts/fileServices"
+    },
+    {
+      "apiVersion": "2026-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', 'standinaprdcus001')]"
+      ],
+      "name": "standinaprdcus001/default",
+      "properties": {
+        "cors": {
+          "corsRules": []
+        }
+      },
+      "type": "Microsoft.Storage/storageAccounts/queueServices"
+    },
+    {
+      "apiVersion": "2026-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', 'standinaprdcus001')]"
+      ],
+      "name": "standinaprdcus001/default",
+      "properties": {
+        "cors": {
+          "corsRules": []
+        }
+      },
+      "type": "Microsoft.Storage/storageAccounts/tableServices"
+    },
+    {
+      "apiVersion": "2026-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', 'standinaprdcus001', 'default')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', 'standinaprdcus001')]"
+      ],
+      "name": "standinaprdcus001/default/lakehouse",
+      "properties": {
+        "defaultEncryptionScope": "$account-encryption-key",
+        "denyEncryptionScopeOverride": false,
+        "immutableStorageWithVersioning": {
+          "enabled": false
+        },
+        "publicAccess": "None"
+      },
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers"
+    }
+  ],
+  "variables": {}
+}

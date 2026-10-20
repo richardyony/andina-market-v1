@@ -1,0 +1,615 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vulnerabilityAssessments_Default_storageContainerPath": {
+      "type": "SecureString"
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2026-08-01-preview",
+      "kind": "v12.0",
+      "location": "centralus",
+      "name": "sql-andinamarket-cus-001",
+      "properties": {
+        "administratorLogin": "sqladmin_andina",
+        "administrators": {
+          "administratorType": "ActiveDirectory",
+          "azureADOnlyAuthentication": false,
+          "login": "grp-andina-data-engineers",
+          "principalType": "Group",
+          "sid": "0a39f0ae-3c79-467d-90de-dc0fa4b5ba40",
+          "tenantId": "d1a7fb8d-5ef8-4536-8e37-229e30665b9b"
+        },
+        "minimalTlsVersion": "1.2",
+        "publicNetworkAccess": "Enabled",
+        "restrictOutboundNetworkAccess": "Disabled",
+        "retentionDays": -1,
+        "version": "12.0"
+      },
+      "tags": {
+        "entorno": "source",
+        "owner": "rhuaman",
+        "proyecto": "andinamarket"
+      },
+      "type": "Microsoft.Sql/servers"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/ActiveDirectory",
+      "properties": {
+        "administratorType": "ActiveDirectory",
+        "login": "grp-andina-data-engineers",
+        "sid": "0a39f0ae-3c79-467d-90de-dc0fa4b5ba40",
+        "tenantId": "d1a7fb8d-5ef8-4536-8e37-229e30665b9b"
+      },
+      "type": "Microsoft.Sql/servers/administrators"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/advancedThreatProtectionSettings"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/CreateIndex",
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/advisors"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/DbParameterization",
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/advisors"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/DefragmentIndex",
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/advisors"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/DropIndex",
+      "properties": {
+        "autoExecuteValue": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/advisors"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/ForceLastGoodPlan",
+      "properties": {
+        "autoExecuteValue": "Enabled"
+      },
+      "type": "Microsoft.Sql/servers/advisors"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "location": "Central US",
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "auditingState": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/auditingPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "auditActionsAndGroups": [],
+        "isAzureMonitorTargetEnabled": false,
+        "isManagedIdentityInUse": false,
+        "isStorageSecondaryKeyInUse": false,
+        "retentionDays": 0,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      },
+      "type": "Microsoft.Sql/servers/auditingSettings"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "azureADOnlyAuthentication": false
+      },
+      "type": "Microsoft.Sql/servers/azureADOnlyAuthentications"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "location": "centralus",
+      "name": "sql-andinamarket-cus-001/default",
+      "properties": {
+        "connectionType": "Default"
+      },
+      "type": "Microsoft.Sql/servers/connectionPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "kind": "v12.0,user,vcore,serverless,freelimit",
+      "location": "centralus",
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001",
+      "properties": {
+        "autoPauseDelay": 60,
+        "availabilityZone": "NoPreference",
+        "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "freeLimitExhaustionBehavior": "AutoPause",
+        "isLedgerOn": false,
+        "maintenanceConfigurationId": "/subscriptions/54aeed2e-7148-44e2-ad5c-e53d863a8b40/providers/Microsoft.Maintenance/publicMaintenanceConfigurations/SQL_Default",
+        "maxSizeBytes": 34359738368,
+        "minCapacity": 0.5,
+        "readScale": "Disabled",
+        "requestedBackupStorageRedundancy": "Local",
+        "useFreeLimit": true,
+        "zoneRedundant": false
+      },
+      "sku": {
+        "capacity": 2,
+        "family": "Gen5",
+        "name": "GP_S_Gen5_2",
+        "tier": "GeneralPurpose"
+      },
+      "tags": {
+        "entorno": "source",
+        "owner": "rhuaman",
+        "proyecto": "andinamarket"
+      },
+      "type": "Microsoft.Sql/servers/databases"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/master/Default",
+      "properties": {
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/advancedThreatProtectionSettings"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "location": "Central US",
+      "name": "sql-andinamarket-cus-001/master/Default",
+      "properties": {
+        "auditingState": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/auditingPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/master/Default",
+      "properties": {
+        "isAzureMonitorTargetEnabled": false,
+        "retentionDays": 0,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      },
+      "type": "Microsoft.Sql/servers/databases/auditingSettings"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/master/Default",
+      "properties": {
+        "isAzureMonitorTargetEnabled": false,
+        "retentionDays": 0,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      },
+      "type": "Microsoft.Sql/servers/databases/extendedAuditingSettings"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/master/Default",
+      "properties": {
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/geoBackupPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/master/Current",
+      "properties": {},
+      "type": "Microsoft.Sql/servers/databases/ledgerDigestUploads"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/master/Default",
+      "properties": {
+        "disabledAlerts": [
+          ""
+        ],
+        "emailAccountAdmins": false,
+        "emailAddresses": [
+          ""
+        ],
+        "retentionDays": 0,
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/securityAlertPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/master/Current",
+      "properties": {
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/transparentDataEncryption"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/master/Default",
+      "properties": {
+        "recurringScans": {
+          "emailSubscriptionAdmins": true,
+          "isEnabled": false
+        }
+      },
+      "type": "Microsoft.Sql/servers/databases/vulnerabilityAssessments"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "isAzureMonitorTargetEnabled": false,
+        "isManagedIdentityInUse": false,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      },
+      "type": "Microsoft.Sql/servers/devOpsAuditingSettings"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "kind": "servicemanaged",
+      "name": "sql-andinamarket-cus-001/current",
+      "properties": {
+        "autoRotationEnabled": false,
+        "serverKeyName": "ServiceManaged",
+        "serverKeyType": "ServiceManaged"
+      },
+      "type": "Microsoft.Sql/servers/encryptionProtector"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "auditActionsAndGroups": [],
+        "isAzureMonitorTargetEnabled": false,
+        "isManagedIdentityInUse": false,
+        "isStorageSecondaryKeyInUse": false,
+        "retentionDays": 0,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      },
+      "type": "Microsoft.Sql/servers/extendedAuditingSettings"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/AllowAllWindowsAzureIps",
+      "properties": {
+        "endIpAddress": "0.0.0.0",
+        "startIpAddress": "0.0.0.0"
+      },
+      "type": "Microsoft.Sql/servers/firewallRules"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/AllowISP-<rango>",
+      "properties": {
+        "endIpAddress": "<IP_FIN_ISP>",
+        "startIpAddress": "<IP_INICIO_ISP>"
+      },
+      "type": "Microsoft.Sql/servers/firewallRules"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/AllowMobile-<ip>",
+      "properties": {
+        "endIpAddress": "<IP_MOVIL>",
+        "startIpAddress": "<IP_MOVIL>"
+      },
+      "type": "Microsoft.Sql/servers/firewallRules"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "kind": "servicemanaged",
+      "name": "sql-andinamarket-cus-001/ServiceManaged",
+      "properties": {
+        "serverKeyType": "ServiceManaged"
+      },
+      "type": "Microsoft.Sql/servers/keys"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "disabledAlerts": [
+          ""
+        ],
+        "emailAccountAdmins": false,
+        "emailAddresses": [
+          ""
+        ],
+        "retentionDays": 0,
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/securityAlertPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/sqlVulnerabilityAssessments"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/Default",
+      "properties": {
+        "recurringScans": {
+          "emailSubscriptionAdmins": true,
+          "isEnabled": false
+        },
+        "storageContainerPath": "[parameters('vulnerabilityAssessments_Default_storageContainerPath')]"
+      },
+      "type": "Microsoft.Sql/servers/vulnerabilityAssessments"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Default",
+      "properties": {
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/advancedThreatProtectionSettings"
+    },
+    {
+      "apiVersion": "2014-04-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "location": "Central US",
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Default",
+      "properties": {
+        "auditingState": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/auditingPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Default",
+      "properties": {
+        "isAzureMonitorTargetEnabled": false,
+        "retentionDays": 0,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      },
+      "type": "Microsoft.Sql/servers/databases/auditingSettings"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/default",
+      "properties": {
+        "monthlyRetention": "PT0S",
+        "timeBasedImmutability": "Disabled",
+        "weekOfYear": 0,
+        "weeklyRetention": "PT0S",
+        "yearlyRetention": "PT0S"
+      },
+      "type": "Microsoft.Sql/servers/databases/backupLongTermRetentionPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/default",
+      "properties": {
+        "diffBackupIntervalInHours": 12,
+        "retentionDays": 7
+      },
+      "type": "Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Default",
+      "properties": {
+        "isAzureMonitorTargetEnabled": false,
+        "retentionDays": 0,
+        "state": "Disabled",
+        "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+      },
+      "type": "Microsoft.Sql/servers/databases/extendedAuditingSettings"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Default",
+      "properties": {
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/geoBackupPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Current",
+      "properties": {},
+      "type": "Microsoft.Sql/servers/databases/ledgerDigestUploads"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Default",
+      "properties": {
+        "disabledAlerts": [
+          ""
+        ],
+        "emailAccountAdmins": false,
+        "emailAddresses": [
+          ""
+        ],
+        "retentionDays": 0,
+        "state": "Disabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/securityAlertPolicies"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Current",
+      "properties": {
+        "scanState": "Complete",
+        "state": "Enabled"
+      },
+      "type": "Microsoft.Sql/servers/databases/transparentDataEncryption"
+    },
+    {
+      "apiVersion": "2026-08-01-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', 'sql-andinamarket-cus-001', 'sqldb-andinamarket-cus-001')]",
+        "[resourceId('Microsoft.Sql/servers', 'sql-andinamarket-cus-001')]"
+      ],
+      "name": "sql-andinamarket-cus-001/sqldb-andinamarket-cus-001/Default",
+      "properties": {
+        "recurringScans": {
+          "emailSubscriptionAdmins": true,
+          "isEnabled": false
+        }
+      },
+      "type": "Microsoft.Sql/servers/databases/vulnerabilityAssessments"
+    }
+  ],
+  "variables": {}
+}
