@@ -179,7 +179,7 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
 | Validación | Resultado |
 |---|---|
 | Silver cuadra con bronze (claves vivas tras aplicar todos los cambios) | ✅ 6 de 6 tablas: clientes 5 095, productos 400, pedidos 40 150, ítems 79 207, pagos 42 254, tickets 6 025 |
-| Cuarentena | 0 filas: la fuente tiene `CHECK` de dominio; que las reglas actúan ante datos malos lo prueban los tests (más abajo) |
+| Cuarentena | 0 filas el 12/10 (la fuente tiene `CHECK` de dominio). **Prueba de punta a punta del 21/10:** 7 filas inválidas inyectadas en Azure SQL ([05_inyectar_invalidos.sql](fuentes/05_inyectar_invalidos.sql)) → CDC → bronze → **7 de 7 en `silver.cuarentena`**, cada una con la regla que rompió; bronze − cuarentena = silver en las 6 tablas (ver defecto 3) |
 | Integridad cabecera-detalle | 119 pedidos con total ≠ suma de ítems y 38 pedidos sin ítems, los mismos que sembró el generador; 0 filas huérfanas |
 | SCD2 | Pago 42213: `pendiente → aprobado → reembolsado`; cliente 38: `regular → frecuente`. 29 versiones extra de clientes y 157 de pagos por el día simulado |
 | Gold cuadra con silver | 79 207 ítems y 8 956 971,97 USD en ambas capas; 0 ventas sin cliente o sin producto |
@@ -190,7 +190,7 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
 
 ### Calidad de datos: pruebas y métricas reales
 
-**Pruebas unitarias** ([tests/](tests/), 154 pruebas, ~20 s con Spark local, sin costo de Databricks: `python -m pytest`). Como la fuente tiene `CHECK` de dominio, en la carga real la cuarentena quedó en 0 filas; las pruebas demuestran con filas armadas a mano que las reglas actúan cuando llega un dato malo:
+**Pruebas unitarias** ([tests/](tests/), 154 pruebas, ~20 s con Spark local, sin costo de Databricks: `python -m pytest`). Como la fuente tiene `CHECK` de dominio, en la carga real la cuarentena quedó en 0 filas; las pruebas demuestran con filas armadas a mano que las reglas actúan cuando llega un dato malo. La prueba de punta a punta del 21/10 lo confirmó en el pipeline real (defecto 3):
 
 | Archivo | Qué demuestra |
 |---|---|
@@ -198,9 +198,10 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
 | [test_cuarentena.py](tests/test_cuarentena.py) | «Nada se descarta en silencio»: en las 6 entidades, silver + cuarentena = todo lo que llegó, sin solaparse; la cuarentena nombra todas las reglas incumplidas y guarda la fila original con su trazabilidad |
 | [test_limpieza.py](tests/test_limpieza.py) | Email normalizado y canónico (duplicados escritos distinto), ciudades canónicas, orden de los cambios CDC (`pendiente → aprobado → reembolsado` en un mismo commit) |
 
-**Dos defectos que encontraron las pruebas** (corregidos en [reglas_calidad.py](src/02_silver/reglas_calidad.py) 1.1, con pruebas de regresión):
+**Tres defectos que encontraron las pruebas** (los dos primeros corregidos en [reglas_calidad.py](src/02_silver/reglas_calidad.py) 1.1, con pruebas de regresión; el tercero en los notebooks `slv_*` 2.2):
 1. **La regex de email se escribía sin escapar dentro de SQL**: Spark SQL convierte `\s` en `s`, así que la expectation marcaba como inválido todo email con la letra «s» (`luis@mail.com`). La columna `es_email_valido` (API de Python, sin parser SQL) siempre estuvo bien; lo falso era la métrica. En el event log del pipeline: **8 277 incumplimientos el 12/10 → 0 el 14/10**.
 2. **Nulos en un limbo**: `NULL IN (...)` da NULL, no FALSE; una fila con segmento nulo podía quedar fuera de silver sin llegar a la cuarentena. Ahora cada regla es *null-safe* (`COALESCE(regla, false)`) y una prueba verifica que ninguna devuelve NULL.
+3. **La cuarentena no recibía nada** (prueba de punta a punta, 21/10). Las 7 filas inyectadas llegaron a bronze y las reglas las detectaron (1 incumplimiento por regla en el event log), pero la cuarentena quedó vacía: el `expect_all_or_drop` estaba en la vista `limpio_<entidad>`, y una expectation en una vista se aplica a **todo el que la lee**, también a la cuarentena. La validación lo mostró: `cuadra = false` en 5 tablas, 7 filas ni en silver ni en cuarentena. Corrección: patrón **limpiar → validar → publicar / apartar**; el descarte pasa a una vista nueva `validado_<entidad>` de la que lee AUTO CDC, y la cuarentena sigue leyendo `limpio_<entidad>` con las mismas reglas. Se recalculó solo la cuarentena (`--full-refresh cuarentena`): 7 de 7 filas y `cuadra = true` en las 6 tablas. Las pruebas unitarias no lo veían porque prueban la función de cuarentena, no cómo se conecta dentro del pipeline.
 
 **Métricas reales de silver** (14/10/2026, dev): lo que la limpieza corrigió y lo que las reglas de *advertir* dejaron pasar marcado.
 
@@ -214,9 +215,9 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
 | Productos sin descripción | 16 de 400 | Entran; `tiene_descripcion = false` |
 | Tickets sin cuerpo | 106 de 6 025 | Entran; `tiene_cuerpo = false` |
 | Pagos aprobados sin referencia de transacción | 2 509 de 42 254 | Entran; regla `referencia_informada_si_aprobado` |
-| Cuarentena | 0 | La fuente valida dominios; las reglas protegen ante otras fuentes o cambios (probado en `tests/`) |
+| Cuarentena | 0 (7 en la prueba del 21/10) | La fuente valida dominios; las reglas protegen ante otras fuentes o cambios (probado en `tests/` y de punta a punta con filas inyectadas) |
 
-En el event log cada expectation se cuenta una vez por flujo que lee la vista (por ejemplo, `limpio_clientes` la leen `clientes`, `clientes_historial` y la cuarentena), por eso allí los totales son múltiplos de las filas de bronze.
+En el event log cada expectation se cuenta una vez por flujo que lee la vista (por ejemplo, `validado_clientes` la leen `clientes` y `clientes_historial`), por eso allí los totales son múltiplos de las filas de bronze.
 
 ### Gobierno de datos personales
 
@@ -293,6 +294,7 @@ Usé asistentes de IA en todo el proyecto, como permite el reto. Las decisiones,
 - **Nivel 2 (pipeline, reglas, modelo y validación):** el diseño de etapas, las decisiones de SCD y alcance las tomé yo; Claude Code generó el código del pipeline, las reglas y el notebook de validación a partir de esas decisiones y de los casos borde de mi generador, y lo validamos contra los datos reales (cuadres bronze → silver → gold).
 - **Organización final (un bundle con dos targets, un job diario con una tarea por capa, un notebook por entidad):** la definí yo después de evaluar también tres bundles separados; Claude Code reorganizó el código validado, generó los notebooks explicados y reconstruyó silver y gold desde bronze para volver a validar.
 - **Pruebas unitarias de silver:** decidí probar las reglas con filas malas armadas a mano porque la cuarentena real estaba vacía; Claude Code escribió las pruebas, que encontraron los dos defectos descritos en la sección 5 (regex de email sin escapar en SQL y reglas no null-safe). Los corregimos, reconstruimos silver y gold en dev y comprobamos los mismos conteos y montos.
+- **Prueba de cuarentena de punta a punta:** decidí inyectar filas inválidas en la fuente real; ejecuté yo el script SQL y el job. La prueba encontró el defecto 3 (la cuarentena no recibía nada); Claude Code rastreó la causa capa por capa con el event log y aplicó la corrección que revisé.
 - **Lo que detecté y corregí al revisar:** el job desplegado con el bundle falló por un paréntesis sobrante en un `MERGE` que en la ejecución manual no se había manifestado; se reemplazó por un DataFrame con esquema explícito. También se corrigieron rutas relativas de los logs de los generadores y un bundle de prd que inicialmente usaba una carpeta editable por todos los usuarios.
 
 ---

@@ -11,15 +11,17 @@
                 (vista, tabla y AUTO CDC): el pipeline registra lo que
                 declara cada notebook fuente, y así cada notebook muestra todo lo que publica.
 
- Flujo por entidad
-   bronze.<tabla>_raw ─▶ vista limpio_<entidad> ─▶ AUTO CDC ─▶ silver.<entidad>
-     (cambios R/I/U/D)    (renombra, normaliza,    (ordena por
-                           aplica reglas)           _secuencia)
-                                └─▶ silver.cuarentena (lo que no pasó una regla de descarte)
+ Flujo por entidad (limpiar → validar → publicar / apartar)
+   bronze.<tabla>_raw ─▶ limpio_<entidad> ─┬─▶ validado_<entidad> ─▶ AUTO CDC ─▶ silver.<entidad>
+     (cambios R/I/U/D)   (renombra,         │   (descarta lo que       (ordena por
+                          normaliza; fallar │    rompe una regla)       _secuencia)
+                          y advertir)       └─▶ silver.cuarentena (lo que rompe una regla de descarte)
+   El descarte va en validado_ y no en limpio_: un expect_all_or_drop en una vista se aplica
+   a todo el que la lee, y la cuarentena también lee limpio_.
 
  Parámetros   : catalogo (configuración del pipeline, la pone el bundle)
  Autoría      : Richard Huamán · con asistencia de IA (Claude)
- Versión      : 2.3 · 2026-10-14 · limpieza de email y ciudad como funciones probables (tests/)
+ Versión      : 2.4 · 2026-10-21 · flujo con vista validado_: la cuarentena ya recibe las filas descartadas
 ===============================================================================
 """
 
