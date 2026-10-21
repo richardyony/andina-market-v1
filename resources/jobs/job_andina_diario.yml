@@ -21,7 +21,7 @@ resources:
         # --- 1. Preparación: esquemas y Volumes que necesita la ingesta ---------
         - task_key: preparar_entorno
           notebook_task:
-            notebook_path: ../src/ingesta/nb_preparar_entorno.ipynb
+            notebook_path: ../../src/00_preparacion/nb_preparar_entorno.ipynb
             base_parameters:
               catalogo: ${var.catalogo}
               storage_account: ${var.storage_account}
@@ -31,7 +31,7 @@ resources:
           depends_on:
             - task_key: preparar_entorno
           notebook_task:
-            notebook_path: ../src/ingesta/nb_bronze_sqlserver_ingesta.ipynb
+            notebook_path: ../../src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb
             base_parameters:            # llenan los widgets del notebook
               catalogo: ${var.catalogo}
               secret_scope: ${var.secret_scope}

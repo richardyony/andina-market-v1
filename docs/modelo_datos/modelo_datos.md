@@ -1,6 +1,6 @@
 # Modelo de datos · Nivel 2 (transformación y modelado)
 
-Diseño de las etapas silver y gold. Se implementa con **Lakeflow Declarative Pipelines** en Python, con **un notebook por entidad** ([src/transformacion/silver/](../../src/transformacion/silver/) y [src/transformacion/gold/](../../src/transformacion/gold/)), en dos pipelines (`pl_andina_silver`, `pl_andina_gold`) que ejecuta el mismo job diario después de la ingesta, todo en un solo bundle.
+Diseño de las etapas silver y gold. Se implementa con **Lakeflow Declarative Pipelines** en Python, con **un notebook por entidad** ([src/02_silver/](../../src/02_silver/) y [src/03_gold/](../../src/03_gold/)), en dos pipelines (`pl_andina_silver`, `pl_andina_gold`) que ejecuta el mismo job diario después de la ingesta, todo en un solo bundle.
 
 ## 1. Etapas y responsabilidad de cada una
 
@@ -51,7 +51,7 @@ Bronze tiene, por tabla, la foto completa (`R`) y cada cambio (`I`, `U`, `D`). `
 
 ## 3. Calidad de datos
 
-Reglas como código ([src/transformacion/silver/reglas_calidad.py](../../src/transformacion/silver/reglas_calidad.py)). Tres acciones:
+Reglas como código ([src/02_silver/reglas_calidad.py](../../src/02_silver/reglas_calidad.py)). Tres acciones:
 
 | Acción | Cuándo | Efecto |
 |---|---|---|

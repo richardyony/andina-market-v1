@@ -1,7 +1,7 @@
 # =============================================================================
 #  Pipeline GOLD (Lakeflow Declarative Pipelines)
 #  silver → gold: modelo estrella (dimensiones y hechos)
-#  - Un notebook por entidad en src/transformacion/gold/ (lista explícita abajo).
+#  - Un notebook por entidad en src/03_gold/ (lista explícita abajo).
 #  - root_path: permite que los notebooks importen los módulos comunes (.py).
 #  - Serverless y triggered: procesa lo nuevo y se apaga (nunca continuous).
 #  - Lo ejecuta la tarea transformacion_gold del job_andina_diario.
@@ -15,20 +15,20 @@ resources:
       serverless: true
       continuous: false
       channel: CURRENT
-      root_path: ../src/transformacion/gold
+      root_path: ../../src/03_gold
       libraries:
         - notebook:
-            path: ../src/transformacion/gold/dim_fecha.ipynb
+            path: ../../src/03_gold/dim_fecha.ipynb
         - notebook:
-            path: ../src/transformacion/gold/dim_canal.ipynb
+            path: ../../src/03_gold/dim_canal.ipynb
         - notebook:
-            path: ../src/transformacion/gold/dim_productos.ipynb
+            path: ../../src/03_gold/dim_productos.ipynb
         - notebook:
-            path: ../src/transformacion/gold/dim_clientes.ipynb
+            path: ../../src/03_gold/dim_clientes.ipynb
         - notebook:
-            path: ../src/transformacion/gold/fact_ventas.ipynb
+            path: ../../src/03_gold/fact_ventas.ipynb
         - notebook:
-            path: ../src/transformacion/gold/fact_pagos.ipynb
+            path: ../../src/03_gold/fact_pagos.ipynb
       configuration:
         catalogo: ${var.catalogo}       # lo leen los módulos comunes con spark.conf.get("catalogo")
       tags:

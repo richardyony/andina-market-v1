@@ -106,9 +106,9 @@ Cada decisión con su porqué y la alternativa que descarté.
 |---|---|
 | [databricks.yml](databricks.yml) | Bundle `andina_market`, **un solo bundle con dos targets**: `dev` (development) y `prd` (production). Solo cambian catálogo, secret scope y cuenta ADLS |
 | [resources/job_andina_diario.yml](resources/job_andina_diario.yml) | Job `job_andina_diario` (serverless): `preparar_entorno` → `ingesta_bronze` → `transformacion_silver` → `transformacion_gold`; un reintento en la ingesta, una corrida a la vez, diario a las 02:00 en pausa, alerta por correo si falla |
-| [src/ingesta/nb_preparar_entorno.ipynb](src/ingesta/nb_preparar_entorno.ipynb) | Crea esquemas y Volumes con `IF NOT EXISTS`: respeta lo existente en dev y lo crea en prd |
-| [src/ingesta/nb_bronze_sqlserver_ingesta.ipynb](src/ingesta/nb_bronze_sqlserver_ingesta.ipynb) | Extracción CDC → landing y carga Auto Loader → bronze, con tablas de control y bitácora |
-| [src/validacion/nb_validacion_bronze_sqlserver.ipynb](src/validacion/nb_validacion_bronze_sqlserver.ipynb) | Comprueba la ingesta: filas por corrida, carpetas en landing y recorrido de estados de pagos |
+| [src/00_preparacion/nb_preparar_entorno.ipynb](src/00_preparacion/nb_preparar_entorno.ipynb) | Crea esquemas y Volumes con `IF NOT EXISTS`: respeta lo existente en dev y lo crea en prd |
+| [src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb](src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb) | Extracción CDC → landing y carga Auto Loader → bronze, con tablas de control y bitácora |
+| [src/04_validacion/nb_validacion_bronze_sqlserver.ipynb](src/04_validacion/nb_validacion_bronze_sqlserver.ipynb) | Comprueba la ingesta: filas por corrida, carpetas en landing y recorrido de estados de pagos |
 
 **Lógica de extracción por tabla:**
 1. Sin watermark, `forzar_full = true` o watermark más antiguo que el LSN mínimo que CDC conserva → **foto completa**.
@@ -166,11 +166,11 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
 
 | Archivo | Qué hace |
 |---|---|
-| [src/transformacion/silver/](src/transformacion/silver/) | **Un notebook por entidad**: `slv_clientes` (SCD1 + historial SCD2 de segmento), `slv_productos`, `slv_pedidos`, `slv_items_pedido`, `slv_pagos`, `slv_pagos_historial_estados` (SCD2 de estado), `slv_tickets`, `slv_cuarentena`, `slv_controles_integridad`. Cada notebook explica sus pasos: vista de limpieza (snake_case en español, emails y ciudades normalizados) → `AUTO CDC` → tabla silver |
-| [src/transformacion/silver/comun.py](src/transformacion/silver/comun.py) · [reglas_calidad.py](src/transformacion/silver/reglas_calidad.py) | Lo común a todas las entidades (lectura de bronze, orden de los cambios, AUTO CDC, cuarentena) y las reglas de calidad como código: fallar, descartar a cuarentena o advertir |
-| [src/transformacion/gold/](src/transformacion/gold/) | **Un notebook por tabla**: `dim_clientes` (SCD2), `dim_productos`, `dim_fecha`, `dim_canal`, `fact_ventas` (grano ítem), `fact_pagos`; utilidades en `comun_gold.py` |
+| [src/02_silver/](src/02_silver/) | **Un notebook por entidad**: `slv_clientes` (SCD1 + historial SCD2 de segmento), `slv_productos`, `slv_pedidos`, `slv_items_pedido`, `slv_pagos`, `slv_pagos_historial_estados` (SCD2 de estado), `slv_tickets`, `slv_cuarentena`, `slv_controles_integridad`. Cada notebook explica sus pasos: vista de limpieza (snake_case en español, emails y ciudades normalizados) → `AUTO CDC` → tabla silver |
+| [src/02_silver/comun.py](src/02_silver/comun.py) · [reglas_calidad.py](src/02_silver/reglas_calidad.py) | Lo común a todas las entidades (lectura de bronze, orden de los cambios, AUTO CDC, cuarentena) y las reglas de calidad como código: fallar, descartar a cuarentena o advertir |
+| [src/03_gold/](src/03_gold/) | **Un notebook por tabla**: `dim_clientes` (SCD2), `dim_productos`, `dim_fecha`, `dim_canal`, `fact_ventas` (grano ítem), `fact_pagos`; utilidades en `comun_gold.py` |
 | [resources/pl_andina_silver.yml](resources/pl_andina_silver.yml) · [resources/pl_andina_gold.yml](resources/pl_andina_gold.yml) | Los dos pipelines en el bundle, con la lista explícita de notebooks de cada capa |
-| [src/validacion/nb_validacion_silver_gold.ipynb](src/validacion/nb_validacion_silver_gold.ipynb) | Validaciones con números de silver y gold |
+| [src/04_validacion/nb_validacion_silver_gold.ipynb](src/04_validacion/nb_validacion_silver_gold.ipynb) | Validaciones con números de silver y gold |
 
 **Por qué estas etapas:** bronze guarda lo que llegó; silver decide qué es correcto (una fila por entidad, calidad, historia); gold organiza para el negocio. Cada capa tiene un solo motivo para cambiar, y como bronze conserva todo, silver y gold se pueden reconstruir desde cero.
 
@@ -198,7 +198,7 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
 | [test_cuarentena.py](tests/test_cuarentena.py) | «Nada se descarta en silencio»: en las 6 entidades, silver + cuarentena = todo lo que llegó, sin solaparse; la cuarentena nombra todas las reglas incumplidas y guarda la fila original con su trazabilidad |
 | [test_limpieza.py](tests/test_limpieza.py) | Email normalizado y canónico (duplicados escritos distinto), ciudades canónicas, orden de los cambios CDC (`pendiente → aprobado → reembolsado` en un mismo commit) |
 
-**Dos defectos que encontraron las pruebas** (corregidos en [reglas_calidad.py](src/transformacion/silver/reglas_calidad.py) 1.1, con pruebas de regresión):
+**Dos defectos que encontraron las pruebas** (corregidos en [reglas_calidad.py](src/02_silver/reglas_calidad.py) 1.1, con pruebas de regresión):
 1. **La regex de email se escribía sin escapar dentro de SQL**: Spark SQL convierte `\s` en `s`, así que la expectation marcaba como inválido todo email con la letra «s» (`luis@mail.com`). La columna `es_email_valido` (API de Python, sin parser SQL) siempre estuvo bien; lo falso era la métrica. En el event log del pipeline: **8 277 incumplimientos el 12/10 → 0 el 14/10**.
 2. **Nulos en un limbo**: `NULL IN (...)` da NULL, no FALSE; una fila con segmento nulo podía quedar fuera de silver sin llegar a la cuarentena. Ahora cada regla es *null-safe* (`COALESCE(regla, false)`) y una prueba verifica que ninguna devuelve NULL.
 
@@ -226,7 +226,7 @@ En el event log cada expectation se cuenta una vez por flujo que lee la vista (p
 | `gold` | `grp-andina-analistas` (y ingeniería) | `nombre`, `apellido`, `email_normalizado` enmascarados; segmento, ciudad, país y banderas completos |
 | `gold`, con `grp-andina-pii-lectores` | Quien tenga una necesidad justificada | Dato real |
 
-Objetos en [infra/04_unity_catalog_objetos.sql](infra/04_unity_catalog_objetos.sql) (pasos 6 y 7); máscaras declaradas en [dim_clientes.ipynb](src/transformacion/gold/dim_clientes.ipynb). Misma consulta sobre `gold.dim_clientes`, dentro y fuera de `grp-andina-pii-lectores` (14/10/2026):
+Objetos en [infra/04_unity_catalog_objetos.sql](infra/04_unity_catalog_objetos.sql) (pasos 6 y 7); máscaras declaradas en [dim_clientes.ipynb](src/03_gold/dim_clientes.ipynb). Misma consulta sobre `gold.dim_clientes`, dentro y fuera de `grp-andina-pii-lectores` (14/10/2026):
 
 ![Con el grupo: datos completos](docs/evidencias/mascara_dim_clientes_con_grupo_pii_2026-10-14.png)
 ![Sin el grupo: S***, C***, ***@hotmail.com](docs/evidencias/mascara_dim_clientes_sin_grupo_pii_2026-10-14.png)
@@ -265,7 +265,7 @@ El analista sigue pudiendo analizar por segmento, ciudad o proveedor de email, p
    pip install -r requirements-dev.txt
    python -m pytest        # 154 pruebas de reglas, cuarentena y limpieza
    ```
-8. **Verificar:** `src/validacion/nb_validacion_bronze_sqlserver.ipynb` (ingesta) y `src/validacion/nb_validacion_silver_gold.ipynb` (silver y gold), o consultar `andina_dev.control.ctl_ejecuciones`.
+8. **Verificar:** `src/04_validacion/nb_validacion_bronze_sqlserver.ipynb` (ingesta) y `src/04_validacion/nb_validacion_silver_gold.ipynb` (silver y gold), o consultar `andina_dev.control.ctl_ejecuciones`.
 
 Promover a producción es `databricks bundle deploy -t prd`, sin cambiar código.
 
@@ -301,16 +301,18 @@ Usé asistentes de IA en todo el proyecto, como permite el reto. Las decisiones,
 
 ```
 databricks.yml                bundle andina_market: targets dev / prd y variables
-resources/                    QUÉ se despliega (YAML)
-├── job_andina_diario.yml     orquestación: preparar → bronze → silver → gold
-├── pl_andina_silver.yml      pipeline declarativo de silver
-└── pl_andina_gold.yml        pipeline declarativo de gold
-src/                          CÓMO se procesa (código)
-├── ingesta/                  bronze: preparación del entorno e ingesta CDC → landing → bronze
-├── transformacion/
-│   ├── silver/               un notebook por entidad (slv_*.ipynb) + comun.py + reglas_calidad.py
-│   └── gold/                 un notebook por tabla (dim_*.ipynb, fact_*.ipynb) + comun_gold.py
-└── validacion/               pruebas manuales (no van en los jobs)
+resources/                    QUÉ se despliega (YAML), una carpeta por tipo de recurso
+├── jobs/
+│   └── job_andina_diario.yml orquestación: preparar → bronze → silver → gold
+└── pipelines/
+    ├── pl_andina_silver.yml  pipeline declarativo de silver
+    └── pl_andina_gold.yml    pipeline declarativo de gold
+src/                          CÓMO se procesa (código), numerado en el orden del job
+├── 00_preparacion/           esquemas y Volumes (IF NOT EXISTS)
+├── 01_bronze/                ingesta CDC → landing → bronze
+├── 02_silver/                un notebook por entidad (slv_*.ipynb) + comun.py + reglas_calidad.py
+├── 03_gold/                  un notebook por tabla (dim_*.ipynb, fact_*.ipynb) + comun_gold.py
+└── 04_validacion/            pruebas manuales (no van en los jobs)
 tests/                        pruebas unitarias de silver (pytest + Spark local) · pytest.ini · requirements-dev.txt
 infra/                        objetos de Unity Catalog (una vez por ambiente)
 fuentes/                      sistema de origen simulado: DDL, generador, CDC, simulador, clickstream, logs

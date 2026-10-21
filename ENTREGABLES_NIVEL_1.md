@@ -6,7 +6,7 @@
 
 | Requisito del reto (nivel 1) | Archivo |
 |---|---|
-| **Código / notebooks de ingesta** | [src/ingesta/nb_bronze_sqlserver_ingesta.ipynb](src/ingesta/nb_bronze_sqlserver_ingesta.ipynb) · [src/ingesta/nb_preparar_entorno.ipynb](src/ingesta/nb_preparar_entorno.ipynb) |
+| **Código / notebooks de ingesta** | [src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb](src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb) · [src/00_preparacion/nb_preparar_entorno.ipynb](src/00_preparacion/nb_preparar_entorno.ipynb) |
 | **Jobs** (Lakeflow Jobs) | [resources/job_andina_diario.yml](resources/job_andina_diario.yml): tareas `preparar_entorno` → `ingesta_bronze` (nivel 1), seguidas de silver y gold (nivel 2) · secuencia y corridas reales de la ingesta: [job_bronze_corridas_2026-10-12.jpg](docs/evidencias/job_bronze_corridas_2026-10-12.jpg) |
 | **Despliegue reproducible** (un Declarative Automation Bundle, targets dev y prd) | [databricks.yml](databricks.yml) · [resources/](resources/) |
 | **Objetos de Unity Catalog por ambiente** (catálogo, esquemas, Volumes, permisos) | [infra/04_unity_catalog_objetos.sql](infra/04_unity_catalog_objetos.sql) |
@@ -32,7 +32,7 @@
 | Volumetría y casos borde de la carga inicial | [fuentes/logs/inicial_20261010_162156.json](fuentes/logs/inicial_20261010_162156.json) |
 | Cambios del día simulado (inserts, updates, deletes por tabla) | [fuentes/logs/dia_20261012_003146.json](fuentes/logs/dia_20261012_003146.json) |
 | Muestra del clickstream generada (12 533 eventos, casos borde) | [fuentes/logs/clickstream_2026-10-12_113727.json](fuentes/logs/clickstream_2026-10-12_113727.json) |
-| Validación de bronze contra la fuente | [src/validacion/nb_validacion_bronze_sqlserver.ipynb](src/validacion/nb_validacion_bronze_sqlserver.ipynb) · resultados en la sección 4 del [README](README.md) |
+| Validación de bronze contra la fuente | [src/04_validacion/nb_validacion_bronze_sqlserver.ipynb](src/04_validacion/nb_validacion_bronze_sqlserver.ipynb) · resultados en la sección 4 del [README](README.md) |
 
 ## Estándares
 

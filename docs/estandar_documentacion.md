@@ -47,13 +47,13 @@ En los notebooks la cabecera es una tabla en la primera celda de markdown.
 
 - **Un solo bundle con dos targets** (`databricks.yml` + `resources/`): qué se despliega (YAML). Un job diario con una tarea por capa.
 - **El código en `src/`**: cómo se procesa. Bronze, un notebook por fuente; silver y gold, un notebook por entidad, con sus pasos explicados en celdas de markdown. Lo compartido va en módulos `.py` (`comun.py`, `reglas_calidad.py`, `comun_gold.py`).
-- **Validaciones en `src/validacion/`:** no van en los jobs; se ejecutan para verificar y dejar evidencia.
+- **Validaciones en `src/04_validacion/`:** no van en los jobs; se ejecutan para verificar y dejar evidencia.
 - **Infraestructura de Unity Catalog en `infra/`:** se ejecuta una vez por ambiente.
 - **Documentación en `docs/`:** decisiones, modelo de datos, diseños y evidencias.
 
 ## 5. Calidad de datos
 
-- Las reglas viven como código en [src/transformacion/silver/reglas_calidad.py](../src/transformacion/silver/reglas_calidad.py), agrupadas por entidad.
+- Las reglas viven como código en [src/02_silver/reglas_calidad.py](../src/02_silver/reglas_calidad.py), agrupadas por entidad.
 - Tres acciones: **fallar** (rompe el modelo), **descartar a cuarentena** (inválido) y **advertir** (mejorable; se marca con `es_*`).
 - Nada se descarta en silencio: lo rechazado queda en `silver.cuarentena` con la regla que falló.
 

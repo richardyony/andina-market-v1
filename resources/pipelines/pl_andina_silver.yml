@@ -1,7 +1,7 @@
 # =============================================================================
 #  Pipeline SILVER (Lakeflow Declarative Pipelines)
 #  bronze → silver: limpieza, calidad (cuarentena) y AUTO CDC (SCD1 / SCD2)
-#  - Un notebook por entidad en src/transformacion/silver/ (lista explícita abajo).
+#  - Un notebook por entidad en src/02_silver/ (lista explícita abajo).
 #  - root_path: permite que los notebooks importen los módulos comunes (.py).
 #  - Serverless y triggered: procesa lo nuevo y se apaga (nunca continuous).
 #  - Lo ejecuta la tarea transformacion_silver del job_andina_diario.
@@ -15,26 +15,26 @@ resources:
       serverless: true
       continuous: false
       channel: CURRENT
-      root_path: ../src/transformacion/silver
+      root_path: ../../src/02_silver
       libraries:
         - notebook:
-            path: ../src/transformacion/silver/slv_cuarentena.ipynb
+            path: ../../src/02_silver/slv_cuarentena.ipynb
         - notebook:
-            path: ../src/transformacion/silver/slv_clientes.ipynb
+            path: ../../src/02_silver/slv_clientes.ipynb
         - notebook:
-            path: ../src/transformacion/silver/slv_productos.ipynb
+            path: ../../src/02_silver/slv_productos.ipynb
         - notebook:
-            path: ../src/transformacion/silver/slv_pedidos.ipynb
+            path: ../../src/02_silver/slv_pedidos.ipynb
         - notebook:
-            path: ../src/transformacion/silver/slv_items_pedido.ipynb
+            path: ../../src/02_silver/slv_items_pedido.ipynb
         - notebook:
-            path: ../src/transformacion/silver/slv_pagos.ipynb
+            path: ../../src/02_silver/slv_pagos.ipynb
         - notebook:
-            path: ../src/transformacion/silver/slv_pagos_historial_estados.ipynb
+            path: ../../src/02_silver/slv_pagos_historial_estados.ipynb
         - notebook:
-            path: ../src/transformacion/silver/slv_tickets.ipynb
+            path: ../../src/02_silver/slv_tickets.ipynb
         - notebook:
-            path: ../src/transformacion/silver/slv_controles_integridad.ipynb
+            path: ../../src/02_silver/slv_controles_integridad.ipynb
       configuration:
         catalogo: ${var.catalogo}       # lo leen los módulos comunes con spark.conf.get("catalogo")
       tags:
