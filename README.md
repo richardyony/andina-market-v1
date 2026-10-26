@@ -20,7 +20,7 @@ Prioricé **profundidad en los niveles 0 a 2** antes de avanzar, como sugiere el
 
 ![Arquitectura de Andina Market](docs/arquitectura/andina-market-arquitectura-iconos.png)
 
-Fuente editable: [andina-market-arquitectura-iconos.excalidraw](docs/arquitectura/andina-market-arquitectura-iconos.excalidraw) (excalidraw.com, con los iconos incrustados) o [.drawio](docs/arquitectura/andina-market-arquitectura-iconos.drawio) (app.diagrams.net). Línea continua: implementado; discontinua: diseño o siguiente nivel. Versiones anteriores: [v4.3](docs/arquitectura/andina-market-arquitectura-v4.3.excalidraw) y [v3.1](docs/arquitectura/andina-market-arquitectura-v3.1.excalidraw), más detallada.
+Fuente editable: [andina-market-arquitectura-iconos.excalidraw](docs/arquitectura/andina-market-arquitectura-iconos.excalidraw) (excalidraw.com, con los iconos incrustados) o [.drawio](docs/arquitectura/andina-market-arquitectura-iconos.drawio) (app.diagrams.net). Línea continua: implementado; discontinua: diseño o siguiente nivel. Versiones anteriores: [v4.3](docs/arquitectura/historico/andina-market-arquitectura-v4.3.excalidraw) y [v3.1](docs/arquitectura/historico/andina-market-arquitectura-v3.1.excalidraw), más detallada. Vista alternativa por capas (medallion sobre Delta, Spark y ADLS): [andina-market-arquitectura-capas.png](docs/arquitectura/andina-market-arquitectura-capas.png) · [.excalidraw](docs/arquitectura/andina-market-arquitectura-capas.excalidraw).
 
 ```
 Azure SQL (sqldb-andinamarket-cus-001)                 Unity Catalog · <catalogo> = andina_dev | andina_prd
@@ -316,14 +316,23 @@ src/                          CÓMO se procesa (código), numerado en el orden d
 ├── 03_gold/                  un notebook por tabla (dim_*.ipynb, fact_*.ipynb) + comun_gold.py
 └── 04_validacion/            pruebas manuales (no van en los jobs)
 tests/                        pruebas unitarias de silver (pytest + Spark local) · pytest.ini · requirements-dev.txt
-infra/                        objetos de Unity Catalog (una vez por ambiente)
-fuentes/                      sistema de origen simulado: DDL, generador, CDC, simulador, clickstream, logs
+infra/
+├── 04_unity_catalog_objetos.sql  objetos de Unity Catalog (una vez por ambiente; el paso 04 de la secuencia de fuentes/)
+└── azure/                    inventario de recursos y plantillas ARM exportadas (IPs redactadas)
+fuentes/                      sistema de origen simulado, numerado en orden de ejecución (el 04 vive en infra/)
+├── 01_ddl_tablas.sql · 02_generar_datos_andina.py · 03_habilitar_cdc.sql
+├── 05_inyectar_invalidos.py | .sql   prueba de cuarentena: mismas 7 filas, versión Python o SQL
+├── 06_generar_clickstream.py
+├── simular_dia.ps1 · inyectar_invalidos.ps1   envoltorios que piden la clave sin mostrarla (02 --modo dia y 05)
+└── logs/                     bitácoras JSON de cada carga
 sample_data/                  muestra .jsonl del clickstream de la app
+exploracion/                  notebooks exportados del workspace (pruebas previas, no se despliegan)
 docs/
-├── arquitectura/             diagrama de arquitectura con iconos, streaming y SAP (.png/.jpg + .excalidraw)
+├── arquitectura/             diagramas principal (iconos), por capas, streaming y SAP (.png/.jpg + .excalidraw)
+│   └── historico/            versiones anteriores del diagrama (v3.1, v4.3)
 ├── modelo_datos/             modelo de datos del nivel 2 (documento + diagrama)
 ├── evidencias/               evidencias de ejecución (job, máscaras)
 ├── respuestas_nivel_1_ingesta.docx · respuestas_nivel_2_transformacion.docx
-├── diseno_streaming.md · diseno_sap.md · estandar_documentacion.md
+└── diseno_streaming.md · diseno_sap.md · estandar_documentacion.md
 ENTREGABLES_NIVEL_1.md · ENTREGABLES_NIVEL_2.md   índice por nivel: lo que pide el reto y dónde está
 ```
