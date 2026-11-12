@@ -105,7 +105,7 @@ Cada decisión con su porqué y la alternativa que descarté.
 | Archivo | Qué hace |
 |---|---|
 | [databricks.yml](databricks.yml) | Bundle `andina_market`, **un solo bundle con dos targets**: `dev` (development) y `prd` (production). Solo cambian catálogo, secret scope y cuenta ADLS |
-| [resources/job_andina_diario.yml](resources/job_andina_diario.yml) | Job `job_andina_diario` (serverless): `preparar_entorno` → `ingesta_bronze` → `transformacion_silver` → `transformacion_gold`; un reintento en la ingesta, una corrida a la vez, diario a las 02:00 en pausa, alerta por correo si falla |
+| [resources/jobs/job_andina_diario.yml](resources/jobs/job_andina_diario.yml) | Job `job_andina_diario` (serverless): `preparar_entorno` → `ingesta_bronze` → `transformacion_silver` → `transformacion_gold`; un reintento en la ingesta, una corrida a la vez, diario a las 02:00 en pausa, alerta por correo si falla |
 | [src/00_preparacion/nb_preparar_entorno.ipynb](src/00_preparacion/nb_preparar_entorno.ipynb) | Crea esquemas y Volumes con `IF NOT EXISTS`: respeta lo existente en dev y lo crea en prd |
 | [src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb](src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb) | Extracción CDC → landing y carga Auto Loader → bronze, con tablas de control y bitácora |
 | [src/04_validacion/nb_validacion_bronze_sqlserver.ipynb](src/04_validacion/nb_validacion_bronze_sqlserver.ipynb) | Comprueba la ingesta: filas por corrida, carpetas en landing y recorrido de estados de pagos |
@@ -169,7 +169,7 @@ Fuente editable: [andina-market-modelo-datos.excalidraw](docs/modelo_datos/andin
 | [src/02_silver/](src/02_silver/) | **Un notebook por entidad**: `slv_clientes` (SCD1 + historial SCD2 de segmento), `slv_productos`, `slv_pedidos`, `slv_items_pedido`, `slv_pagos`, `slv_pagos_historial_estados` (SCD2 de estado), `slv_tickets`, `slv_cuarentena`, `slv_controles_integridad`. Cada notebook explica sus pasos: vista de limpieza (snake_case en español, emails y ciudades normalizados) → `AUTO CDC` → tabla silver |
 | [src/02_silver/comun.py](src/02_silver/comun.py) · [reglas_calidad.py](src/02_silver/reglas_calidad.py) | Lo común a todas las entidades (lectura de bronze, orden de los cambios, AUTO CDC, cuarentena) y las reglas de calidad como código: fallar, descartar a cuarentena o advertir |
 | [src/03_gold/](src/03_gold/) | **Un notebook por tabla**: `dim_clientes` (SCD2), `dim_productos`, `dim_fecha`, `dim_canal`, `fact_ventas` (grano ítem), `fact_pagos`; utilidades en `comun_gold.py` |
-| [resources/pl_andina_silver.yml](resources/pl_andina_silver.yml) · [resources/pl_andina_gold.yml](resources/pl_andina_gold.yml) | Los dos pipelines en el bundle, con la lista explícita de notebooks de cada capa |
+| [resources/pipelines/pl_andina_silver.yml](resources/pipelines/pl_andina_silver.yml) · [resources/pipelines/pl_andina_gold.yml](resources/pipelines/pl_andina_gold.yml) | Los dos pipelines en el bundle, con la lista explícita de notebooks de cada capa |
 | [src/04_validacion/nb_validacion_silver_gold.ipynb](src/04_validacion/nb_validacion_silver_gold.ipynb) | Validaciones con números de silver y gold |
 
 **Por qué estas etapas:** bronze guarda lo que llegó; silver decide qué es correcto (una fila por entidad, calidad, historia); gold organiza para el negocio. Cada capa tiene un solo motivo para cambiar, y como bronze conserva todo, silver y gold se pueden reconstruir desde cero.
@@ -328,10 +328,11 @@ fuentes/                      sistema de origen simulado, numerado en orden de e
 sample_data/                  muestra .jsonl del clickstream de la app
 exploracion/                  notebooks exportados del workspace (pruebas previas, no se despliegan)
 docs/
-├── arquitectura/             diagramas principal (iconos), por capas, streaming y SAP (.png/.jpg + .excalidraw)
+├── arquitectura/             diagramas principal (iconos), por capas, de secuencia, streaming y SAP
 │   └── historico/            versiones anteriores del diagrama (v3.1, v4.3)
 ├── modelo_datos/             modelo de datos del nivel 2 (documento + diagrama)
 ├── evidencias/               evidencias de ejecución (job, máscaras)
+├── manual_tecnico_andina_market.docx   manual paso a paso por nivel, con diagrama de secuencia
 ├── respuestas_nivel_1_ingesta.docx · respuestas_nivel_2_transformacion.docx
 └── diseno_streaming.md · diseno_sap.md · estandar_documentacion.md
 ENTREGABLES_NIVEL_1.md · ENTREGABLES_NIVEL_2.md   índice por nivel: lo que pide el reto y dónde está
