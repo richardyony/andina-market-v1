@@ -8,7 +8,7 @@
 #  Promoción (docs/despliegue_cicd.md):
 #    dev  → lo despliega cada desarrollador desde su equipo (entorno personal)
 #    stg  → GitHub Actions al hacer merge a main
-#    prd  → GitHub Actions con un tag v* sobre un commit de main
+#    prd  → GitHub Actions con un tag v*, con aprobación
 #
 #  Qué despliega (carpeta resources/, una subcarpeta por tipo de recurso):
 #    jobs/job_andina_diario.yml       orquestación: preparar → ingesta (bronze) → silver → gold

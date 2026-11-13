@@ -7,17 +7,17 @@ Cómo llega un cambio desde el equipo de un desarrollador hasta producción, y q
 ```
 feature/<tema> ──PR──▶ develop ──PR──▶ main ──tag v*──▶ producción
       │                  │               │                 │
-      │ ci.yml           │ ci.yml        │ cd.yml          │ cd.yml (solo tags v*)
+      │ ci.yml           │ ci.yml        │ cd.yml          │ cd.yml (con aprobación)
       ▼                  ▼               ▼                 ▼
  deploy -t dev       pruebas +       deploy -t stg     deploy -t prd
- (a mano, propio)    validate ×3     (automático)      (tag sobre main)
+ (a mano, propio)    validate ×3     (automático)      (Required reviewers)
 ```
 
 | Ambiente | Catálogo | Quién despliega | Cuándo | Identidad de ejecución |
 |---|---|---|---|---|
 | `dev` | `andina_dev` | Cada desarrollador, desde su equipo | Mientras trabaja en su rama | Su usuario (`mode: development`: recursos con prefijo `[dev usuario]`, horarios en pausa) |
 | `stg` | `andina_stg` | GitHub Actions (`cd.yml`) | Cada merge a `main` | Service principal `sp-andina-stg` (`run_as`) |
-| `prd` | `andina_prd` | GitHub Actions (`cd.yml`) | Un tag `v*` sobre un commit de `main`, creado a propósito por el responsable | Service principal `sp-andina-prd` (`run_as`) |
+| `prd` | `andina_prd` | GitHub Actions (`cd.yml`) | Un tag `v*` sobre un commit de `main`, aprobado por una persona | Service principal `sp-andina-prd` (`run_as`) |
 
 **Reglas del flujo:**
 - **Nadie despliega stg ni prd desde su equipo.** Lo que está en esos ambientes es exactamente lo que hay en `main` o en el tag, y queda registrado en GitHub Actions quién, cuándo y qué.
@@ -81,13 +81,11 @@ En el repositorio: **Settings → Environments**. Crea tres:
 |---|---|---|
 | `ci` | `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET` de `sp-andina-stg` | Ninguna (solo valida) |
 | `stg` | Los mismos dos, de `sp-andina-stg` | *Deployment branches*: solo `main` |
-| `prd` | Los mismos dos, de `sp-andina-prd` | *Deployment branches and tags*: solo tags `v*` |
-
-> **Sin *Required reviewers*:** el repositorio es privado y en el plan gratuito de GitHub esa regla solo existe para repos públicos. La aprobación de prd es el acto deliberado de crear y subir el tag, y prd tiene tres barreras: solo tags `v*`, solo commits de `main` (ya probados en stg) y el Environment `prd`, con sus propios secrets. Con GitHub Pro o Team se marca *Required reviewers* en el Environment `prd`, sin tocar código.
+| `prd` | Los mismos dos, de `sp-andina-prd` | *Required reviewers*: tú. *Deployment branches and tags*: solo tags `v*` |
 
 Y una **variable de repositorio** (Settings → Secrets and variables → Actions → Variables): `DATABRICKS_HOST` = `https://adb-7405605614782968.8.azuredatabricks.net`.
 
-> En una empresa habría además un workspace por ambiente. Aquí los tres comparten workspace; el aislamiento lo dan el catálogo, el service principal de cada ambiente, el GitHub Environment y la regla de tags de prd.
+> En una empresa habría además un workspace por ambiente. Aquí los tres comparten workspace; el aislamiento lo dan el catálogo, el service principal de cada ambiente, el GitHub Environment y la aprobación de prd.
 
 ### 3.3 Catálogo de stg
 
@@ -142,5 +140,5 @@ databricks bundle run job_andina_diario -t dev
 # Integrar: PR feature → develop, y luego PR develop → main (despliega stg)
 # Liberar a producción, desde main actualizado:
 git tag -a v1.1 -m "Andina Market v1.1: stg + CI/CD + validación final"
-git push origin v1.1         # cd.yml comprueba que el tag está en main y despliega prd
+git push origin v1.1         # cd.yml espera tu aprobación en GitHub y despliega prd
 ```

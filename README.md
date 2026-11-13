@@ -105,7 +105,7 @@ Cada decisión con su porqué y la alternativa que descarté.
 | Archivo | Qué hace |
 |---|---|
 | [databricks.yml](databricks.yml) | Bundle `andina_market`, **un solo bundle con tres targets**: `dev` (development), `stg` y `prd` (production, `run_as` service principal). Solo cambian catálogo, secret scope, cuenta ADLS y carpeta de landing |
-| [.github/workflows/](.github/workflows/) | **CI/CD con GitHub Actions**: `ci.yml` (pruebas unitarias + `bundle validate` de los 3 targets en cada PR) y `cd.yml` (merge a `main` → stg; tag `v*` sobre `main` → prd). Detalle en [docs/despliegue_cicd.md](docs/despliegue_cicd.md) |
+| [.github/workflows/](.github/workflows/) | **CI/CD con GitHub Actions**: `ci.yml` (pruebas unitarias + `bundle validate` de los 3 targets en cada PR) y `cd.yml` (merge a `main` → stg; tag `v*` → prd con aprobación). Detalle en [docs/despliegue_cicd.md](docs/despliegue_cicd.md) |
 | [resources/jobs/job_andina_diario.yml](resources/jobs/job_andina_diario.yml) | Job `job_andina_diario` (serverless): `preparar_entorno` → `ingesta_bronze` → `transformacion_silver` → `transformacion_gold`; un reintento en la ingesta, una corrida a la vez, diario a las 02:00 en pausa, alerta por correo si falla |
 | [src/00_preparacion/nb_preparar_entorno.ipynb](src/00_preparacion/nb_preparar_entorno.ipynb) | Crea esquemas y Volumes con `IF NOT EXISTS`: respeta lo existente en dev y lo crea en prd |
 | [src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb](src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb) | Extracción CDC → landing y carga Auto Loader → bronze, con tablas de control y bitácora |
@@ -269,7 +269,7 @@ El analista sigue pudiendo analizar por segmento, ciudad o proveedor de email, p
    ```
 8. **Verificar:** la última tarea del job, `validacion_final`, falla si algo no cuadra (conciliación, claves únicas, SCD2, gold = silver). Para el análisis detallado: `src/04_validacion/nb_validacion_bronze_sqlserver.ipynb` (ingesta) y `src/04_validacion/nb_validacion_silver_gold.ipynb` (silver y gold), o consultar `andina_dev.control.ctl_ejecuciones`.
 
-Promover a stg y prd no se hace desde un equipo: lo hace GitHub Actions (merge a `main` → stg; tag `v*` sobre `main` → prd), sin cambiar código. Configuración del service principal y de los GitHub Environments: [docs/despliegue_cicd.md](docs/despliegue_cicd.md).
+Promover a stg y prd no se hace desde un equipo: lo hace GitHub Actions (merge a `main` → stg; tag `v*` → prd con aprobación), sin cambiar código. Configuración del service principal y de los GitHub Environments: [docs/despliegue_cicd.md](docs/despliegue_cicd.md).
 
 ---
 

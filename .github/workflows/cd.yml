@@ -2,7 +2,8 @@
 #  CD · Andina Market: despliega el bundle según dónde llega el código.
 #
 #    push a main      → target stg   (cada merge de develop a main se prueba en staging)
-#    tag v*  (v1.1…)  → target prd   (solo tags v* sobre un commit de main)
+#    tag v*  (v1.1…)  → target prd   (solo con aprobación: Required reviewers en el
+#                                     GitHub Environment "prd")
 #
 #  dev NO se despliega aquí: es el entorno personal de cada desarrollador
 #  (`databricks bundle deploy -t dev` desde su equipo). En modo development cada
@@ -11,10 +12,8 @@
 #  Lo que llega a develop ya pasó por ci.yml (pruebas + validate de los 3 targets).
 #
 #  Cada ambiente es un GitHub Environment (stg, prd) con sus propios secrets. Así,
-#  un workflow de stg no puede leer las credenciales de prd. El Environment prd solo
-#  acepta tags v*. La aprobación es crear el tag: Required reviewers no está
-#  disponible en repos privados del plan gratuito de GitHub (se activa con Pro o
-#  Team, sin cambiar este archivo).
+#  un workflow de stg no puede leer las credenciales de prd, y prd exige que una
+#  persona apruebe el despliegue.
 #
 #  El despliegue no corre el job: el job de stg y prd tiene su horario (02:00 Lima)
 #  y se puede disparar a mano con `databricks bundle run job_andina_diario -t <env>`.
