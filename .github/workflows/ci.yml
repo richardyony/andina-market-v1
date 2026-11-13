@@ -1,0 +1,60 @@
+# =============================================================================
+#  CI · Andina Market: se ejecuta en cada Pull Request hacia develop o main.
+#
+#  Un PR solo se integra si pasa las dos pruebas:
+#    1. pruebas_unitarias  reglas de calidad y limpieza de silver con Spark local
+#                          (tests/, sin Databricks ni costo)
+#    2. validar_bundle     `databricks bundle validate` en los tres targets: el YAML,
+#                          las variables y las rutas de los notebooks son correctos
+#                          para dev, stg y prd ANTES de desplegar nada
+#
+#  Credenciales: service principal sp-andinamarket-cicd con OAuth M2M (client id +
+#  secret), guardadas como secrets del GitHub Environment "ci" (solo valida, nunca
+#  despliega). Nunca un token personal ni secretos en el repositorio.
+# =============================================================================
+name: ci
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas_unitarias:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"        # PySpark 3.5 tiene soporte oficial hasta 3.11
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - uses: actions/setup-java@v4     # Spark local necesita Java 17
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest
+
+  validar_bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ci                     # solo lee los secrets; no despliega nada
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+      BUNDLE_VAR_sp_application_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@v1.24.0
+      - name: Validar los tres targets
+        run: |
+          for target in dev stg prd; do
+            echo "::group::bundle validate -t $target"
+            databricks bundle validate -t "$target"
+            echo "::endgroup::"
+          done

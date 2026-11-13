@@ -1,11 +1,12 @@
 /* =====================================================================
    Andina Market · infraestructura · 04_unity_catalog_objetos.sql
-   Objetos de Unity Catalog que se crean UNA vez por ambiente (dev, prd).
+   Objetos de Unity Catalog que se crean UNA vez por ambiente (dev, stg, prd).
    Ejecutar como administrador del workspace en el SQL Editor (o en un
    notebook con %sql), reemplazando los valores de cada ambiente:
 
      ambiente   catálogo     storage              Key Vault
      dev        andina_dev   standinadevcus001    kv-andina-dev-cus-001
+     stg        andina_stg   standinadevcus001    kv-andina-dev-cus-001   (comparte storage y Key Vault de dev)
      prd        andina_prd   standinaprdcus001    kv-andina-prd-cus-001
 
    Prerrequisitos en Azure (portal):
@@ -110,3 +111,14 @@ RETURN CASE WHEN is_account_group_member('grp-andina-pii-lectores') THEN txt
 --   SHOW GRANTS ON SCHEMA andina_dev.gold;
 
 -- Para prd: repetir los pasos 2 a 7 con loc_andina_prd, andina_prd y standinaprdcus001.
+
+-- Para stg (staging): comparte la ubicación externa loc_andina_dev y el storage de dev
+-- (supuesto de costo), pero tiene catálogo propio y su propia carpeta de landing.
+-- No se repite el paso 2. Los esquemas y Volumes de landing los crea el job
+-- (nb_preparar_entorno con carpeta_landing = stg/landing). Solo hace falta:
+CREATE CATALOG IF NOT EXISTS andina_stg
+  MANAGED LOCATION 'abfss://lakehouse@standinadevcus001.dfs.core.windows.net/andina_stg'
+  COMMENT 'Andina Market · ambiente stg (staging): réplica de prd para probar despliegues.';
+-- Luego, repetir los pasos 6 y 7 reemplazando andina_dev por andina_stg (permisos,
+-- esquema gobierno y funciones de máscara), y dar acceso al service principal de
+-- CI/CD (docs/despliegue_cicd.md, sección 3.1).

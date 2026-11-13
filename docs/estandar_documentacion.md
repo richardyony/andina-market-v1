@@ -45,9 +45,9 @@ En los notebooks la cabecera es una tabla en la primera celda de markdown.
 
 ## 4. Organización
 
-- **Un solo bundle con dos targets** (`databricks.yml` + `resources/`): qué se despliega (YAML). Un job diario con una tarea por capa.
+- **Un solo bundle con tres targets** (`dev`, `stg`, `prd`; `databricks.yml` + `resources/`): qué se despliega (YAML). Un job diario con una tarea por capa. stg y prd los despliega solo GitHub Actions ([despliegue_cicd.md](despliegue_cicd.md)).
 - **El código en `src/`**: cómo se procesa. Bronze, un notebook por fuente; silver y gold, un notebook por entidad, con sus pasos explicados en celdas de markdown. Lo compartido va en módulos `.py` (`comun.py`, `reglas_calidad.py`, `comun_gold.py`).
-- **Validaciones en `src/04_validacion/`:** no van en los jobs; se ejecutan para verificar y dejar evidencia.
+- **Validaciones en `src/04_validacion/`:** `nb_validacion_final` es la última tarea del job y falla si una prueba no se cumple; los demás notebooks son análisis manual para verificar y dejar evidencia.
 - **Infraestructura de Unity Catalog en `infra/`:** se ejecuta una vez por ambiente.
 - **Documentación en `docs/`:** decisiones, modelo de datos, diseños y evidencias.
 

@@ -3,9 +3,9 @@
 #
 #  Grafo de tareas (cada capa es una tarea; cada una espera a la anterior):
 #
-#    1. preparar_entorno ──▶ 2. ingesta_bronze ──▶ 3. transformacion_silver ──▶ 4. transformacion_gold
-#       esquemas y Volumes     Azure SQL (CDC) →      pipeline pl_andina_silver   pipeline pl_andina_gold
-#       (IF NOT EXISTS)        landing → bronze       (calidad, SCD1/SCD2)        (modelo estrella)
+#    1. preparar_entorno ──▶ 2. ingesta_bronze ──▶ 3. transformacion_silver ──▶ 4. transformacion_gold ──▶ 5. validacion_final
+#       esquemas y Volumes     Azure SQL (CDC) →      pipeline pl_andina_silver   pipeline pl_andina_gold     pruebas con condición
+#       (IF NOT EXISTS)        landing → bronze       (calidad, SCD1/SCD2)        (modelo estrella)           de aprobación (falla = rojo)
 #
 #  Cómputo serverless (sin bloque de cluster). Diario a las 02:00 de Lima, en pausa
 #  hasta pasar a producción. Si una tarea falla, las siguientes no corren y llega
@@ -15,7 +15,7 @@ resources:
   jobs:
     job_andina_diario:
       name: job_andina_diario
-      description: "Andina Market diario: preparar → bronze (ingesta CDC) → silver → gold."
+      description: "Andina Market diario: preparar → bronze (ingesta CDC) → silver → gold → validación."
 
       tasks:
         # --- 1. Preparación: esquemas y Volumes que necesita la ingesta ---------
@@ -25,6 +25,7 @@ resources:
             base_parameters:
               catalogo: ${var.catalogo}
               storage_account: ${var.storage_account}
+              carpeta_landing: ${var.carpeta_landing}
 
         # --- 2. BRONZE: extracción CDC → landing → Auto Loader → bronze ---------
         - task_key: ingesta_bronze
@@ -55,6 +56,19 @@ resources:
           pipeline_task:
             pipeline_id: ${resources.pipelines.pl_andina_gold.id}
             full_refresh: false
+
+        # --- 5. VALIDACIÓN: ¿la corrida hizo su trabajo? (no solo «terminó») -----
+        #  Datos en cada capa, frescura, conciliación bronze = silver + cuarentena,
+        #  clave única, una versión vigente por clave y gold = silver. Si una prueba
+        #  falla, lanza un error: el job queda en rojo y llega la alerta.
+        - task_key: validacion_final
+          depends_on:
+            - task_key: transformacion_gold
+          notebook_task:
+            notebook_path: ../../src/04_validacion/nb_validacion_final.ipynb
+            base_parameters:
+              catalogo: ${var.catalogo}
+          max_retries: 0                # reintentar no arregla un dato malo
 
       performance_target: STANDARD      # serverless más barato; en batch no importa el arranque
       schedule:

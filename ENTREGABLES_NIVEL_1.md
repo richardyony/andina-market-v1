@@ -8,7 +8,7 @@
 |---|---|
 | **Código / notebooks de ingesta** | [src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb](src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb) · [src/00_preparacion/nb_preparar_entorno.ipynb](src/00_preparacion/nb_preparar_entorno.ipynb) |
 | **Jobs** (Lakeflow Jobs) | [resources/jobs/job_andina_diario.yml](resources/jobs/job_andina_diario.yml): tareas `preparar_entorno` → `ingesta_bronze` (nivel 1), seguidas de silver y gold (nivel 2) · secuencia y corridas reales de la ingesta: [job_bronze_corridas_2026-10-12.jpg](docs/evidencias/job_bronze_corridas_2026-10-12.jpg) |
-| **Despliegue reproducible** (un Declarative Automation Bundle, targets dev y prd) | [databricks.yml](databricks.yml) · [resources/](resources/) |
+| **Despliegue reproducible** (un Declarative Automation Bundle, targets dev, stg y prd; CI/CD con GitHub Actions) | [databricks.yml](databricks.yml) · [resources/](resources/) · [.github/workflows/](.github/workflows/) · [docs/despliegue_cicd.md](docs/despliegue_cicd.md) |
 | **Objetos de Unity Catalog por ambiente** (catálogo, esquemas, Volumes, permisos) | [infra/04_unity_catalog_objetos.sql](infra/04_unity_catalog_objetos.sql) |
 | **Respuestas del nivel 1**: las decisiones (carga, cambios, frecuencia, formato, orquestación, esquema, trazabilidad) y lo que se espera dominar (Auto Loader, checkpoints, bundles, streaming, arquitectura) | [docs/respuestas_nivel_1_ingesta.docx](docs/respuestas_nivel_1_ingesta.docx) |
 | **README con decisiones** (y supuestos, cómo reproducir, uso de IA) | [README.md](README.md) |
