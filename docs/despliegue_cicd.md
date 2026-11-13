@@ -83,6 +83,8 @@ En el repositorio: **Settings → Environments**. Crea tres:
 | `stg` | Los mismos dos, de `sp-andina-stg` | *Deployment branches*: solo `main` |
 | `prd` | Los mismos dos, de `sp-andina-prd` | *Required reviewers*: tú. *Deployment branches and tags*: solo tags `v*` |
 
+> **Plan de GitHub:** en el plan gratuito, *Required reviewers*, las reglas de ramas y tags y los secrets de Environment solo se aplican en repositorios **públicos**. En un repo privado hace falta GitHub Pro o Team. Sin ellos, prd queda protegido solo por `cd.yml`: se dispara con un tag `v*` y rechaza un tag que no esté en `main`.
+
 Y una **variable de repositorio** (Settings → Secrets and variables → Actions → Variables): `DATABRICKS_HOST` = `https://adb-7405605614782968.8.azuredatabricks.net`.
 
 > En una empresa habría además un workspace por ambiente. Aquí los tres comparten workspace; el aislamiento lo dan el catálogo, el service principal de cada ambiente, el GitHub Environment y la aprobación de prd.
