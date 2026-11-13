@@ -8,7 +8,7 @@
 #                          las variables y las rutas de los notebooks son correctos
 #                          para dev, stg y prd ANTES de desplegar nada
 #
-#  Credenciales: service principal sp-andinamarket-cicd con OAuth M2M (client id +
+#  Credenciales: service principal sp-andina-stg con OAuth M2M (client id +
 #  secret), guardadas como secrets del GitHub Environment "ci" (solo valida, nunca
 #  despliega). Nunca un token personal ni secretos en el repositorio.
 # =============================================================================

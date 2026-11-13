@@ -38,7 +38,6 @@ include:
 sync:
   exclude:
     - .github/**
-    - specs/**
     - docs/**
     - exploracion/**
     - fuentes/**
@@ -64,7 +63,7 @@ variables:
     description: Carpeta de landing dentro del contenedor lakehouse. stg comparte el storage de dev y usa su propia carpeta para no solapar Volumes.
     default: landing
   sp_application_id:
-    description: Application ID del service principal sp-andinamarket-cicd. Despliega desde GitHub Actions y ejecuta los jobs de stg y prd (run_as). Lo entrega CI/CD con BUNDLE_VAR_sp_application_id.
+    description: Application ID del service principal del ambiente (sp-andina-stg o sp-andina-prd). Despliega desde GitHub Actions y ejecuta el job y los pipelines (run_as). Lo entrega CI/CD con BUNDLE_VAR_sp_application_id, desde los secrets del GitHub Environment.
     default: ""
   correo_alertas:
     description: Destinatario de las alertas cuando el job falla.

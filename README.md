@@ -278,7 +278,7 @@ Promover a stg y prd no se hace desde un equipo: lo hace GitHub Actions (merge a
 - **Datos sintéticos:** la empresa es ficticia; montos en **USD** y fechas en **UTC**. Países: Perú, Colombia, Ecuador, Bolivia y Chile.
 - **Un workspace para dev, stg y prd:** el aislamiento lo dan catálogo, storage y Key Vault por entorno. En una empresa grande habría un workspace por entorno.
 - **stg comparte recursos con dev (costo):** usa el storage, el Key Vault y la base de origen de dev, con catálogo propio (`andina_stg`) y carpeta de landing propia (`stg/landing`).
-- **Identidad de ejecución:** dev corre con el usuario que despliega; stg y prd con el service principal `sp-andinamarket-cicd` (`run_as`). Uno solo para ambos porque comparten workspace; en una empresa, uno por ambiente.
+- **Identidad de ejecución:** dev corre con el usuario que despliega; stg y prd con un service principal por ambiente (`sp-andina-stg`, `sp-andina-prd`) mediante `run_as`: cada uno solo tiene permisos sobre su catálogo.
 - **Red:** Azure SQL y ADLS con acceso público restringido por firewall y autenticación. En producción, Private Endpoints.
 - **Redundancia:** storage LRS por costo; en producción, ZRS o GRS.
 - **Clientes duplicados: se marcan, no se fusionan.** Mismo email canónico, o mismo nombre, apellido y teléfono, es una *sospecha*; fusionar dos cuentas cambia el historial de compras de una persona y es una decisión de negocio (o de un proceso de datos maestros), no del pipeline. Gold expone `es_posible_duplicado` para que analítica decida y nada se pierde si la sospecha era falsa.

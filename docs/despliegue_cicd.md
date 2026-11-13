@@ -16,8 +16,8 @@ feature/<tema> ──PR──▶ develop ──PR──▶ main ──tag v*─�
 | Ambiente | Catálogo | Quién despliega | Cuándo | Identidad de ejecución |
 |---|---|---|---|---|
 | `dev` | `andina_dev` | Cada desarrollador, desde su equipo | Mientras trabaja en su rama | Su usuario (`mode: development`: recursos con prefijo `[dev usuario]`, horarios en pausa) |
-| `stg` | `andina_stg` | GitHub Actions (`cd.yml`) | Cada merge a `main` | Service principal `sp-andinamarket-cicd` (`run_as`) |
-| `prd` | `andina_prd` | GitHub Actions (`cd.yml`) | Un tag `v*` sobre un commit de `main`, aprobado por una persona | Service principal `sp-andinamarket-cicd` (`run_as`) |
+| `stg` | `andina_stg` | GitHub Actions (`cd.yml`) | Cada merge a `main` | Service principal `sp-andina-stg` (`run_as`) |
+| `prd` | `andina_prd` | GitHub Actions (`cd.yml`) | Un tag `v*` sobre un commit de `main`, aprobado por una persona | Service principal `sp-andina-prd` (`run_as`) |
 
 **Reglas del flujo:**
 - **Nadie despliega stg ni prd desde su equipo.** Lo que está en esos ambientes es exactamente lo que hay en `main` o en el tag, y queda registrado en GitHub Actions quién, cuándo y qué.
@@ -42,27 +42,33 @@ Si una falla, la tarea lanza un error con la lista de pruebas fallidas: el job q
 
 ## 3. Configuración inicial (una sola vez)
 
-### 3.1 Service principal (Databricks)
+### 3.1 Service principals (Databricks): uno por ambiente
 
-1. **Settings → Identity and access → Service principals → Add new**, nombre `sp-andinamarket-cicd` (gestionado por Databricks).
-2. En el service principal, pestaña **Secrets → Generate secret**. Guarda el **Client ID** (es el *Application ID*) y el **Secret**: el secret se muestra una sola vez.
-3. Darle acceso a lo que el job lee y escribe. En el SQL Editor, como administrador (reemplaza `<application-id>`):
+| Service principal | Ambiente | Permisos |
+|---|---|---|
+| `sp-andina-stg` | stg (y la validación del CI) | `andina_stg`, ubicación `loc_andina_dev`, scope `kv-andina-dev` |
+| `sp-andina-prd` | prd | `andina_prd`, ubicación `loc_andina_prd`, scope `kv-andina-prd` |
+
+Si se filtrara el secret de stg, no da acceso a prd.
+
+1. **Settings → Identity and access → Service principals → Add new** (gestionado por Databricks). `sp-andina-prd` ya existe; falta crear `sp-andina-stg`.
+2. En cada service principal, pestaña **Secrets → Generate secret**. Guarda el **Client ID** (es el *Application ID*) y el **Secret**: el secret se muestra una sola vez.
+3. Darle acceso a lo que el job lee y escribe. En el SQL Editor, como administrador (reemplaza los `<application-id>`):
 
    ```sql
-   -- Catálogos de los ambientes que despliega (stg y prd)
-   GRANT ALL PRIVILEGES ON CATALOG andina_stg TO `<application-id>`;
-   GRANT ALL PRIVILEGES ON CATALOG andina_prd TO `<application-id>`;
-   -- Crear los Volumes externos de landing de cada ambiente
-   GRANT CREATE EXTERNAL VOLUME, READ FILES, WRITE FILES ON EXTERNAL LOCATION loc_andina_dev TO `<application-id>`;
-   GRANT CREATE EXTERNAL VOLUME, READ FILES, WRITE FILES ON EXTERNAL LOCATION loc_andina_prd TO `<application-id>`;
+   -- stg
+   GRANT ALL PRIVILEGES ON CATALOG andina_stg TO `<application-id-stg>`;
+   GRANT CREATE EXTERNAL VOLUME, READ FILES, WRITE FILES ON EXTERNAL LOCATION loc_andina_dev TO `<application-id-stg>`;
+   -- prd (ALL PRIVILEGES sobre andina_prd ya está otorgado)
+   GRANT CREATE EXTERNAL VOLUME, READ FILES, WRITE FILES ON EXTERNAL LOCATION loc_andina_prd TO `<application-id-prd>`;
    ```
 
-   `ALL PRIVILEGES` sobre el catálogo es deliberado: el service principal es el **dueño operativo** de stg y prd (crea esquemas, Volumes, tablas y vistas). Las personas no escriben en esos catálogos; los analistas leen gold con sus propios permisos y máscaras.
+   `ALL PRIVILEGES` sobre el catálogo es deliberado: el service principal es el **dueño operativo** de su ambiente (crea esquemas, Volumes, tablas y vistas). Las personas no escriben en esos catálogos; los analistas leen gold con sus propios permisos y máscaras.
 4. Leer las credenciales de Azure SQL (secret scopes respaldados por Key Vault), desde tu equipo:
 
    ```powershell
-   databricks secrets put-acl kv-andina-dev <application-id> READ   # stg usa la base de dev
-   databricks secrets put-acl kv-andina-prd <application-id> READ
+   databricks secrets put-acl kv-andina-dev <application-id-stg> READ   # stg usa la base de dev
+   # kv-andina-prd: sp-andina-prd ya tiene READ
    ```
 
 ### 3.2 GitHub Environments
@@ -71,13 +77,13 @@ En el repositorio: **Settings → Environments**. Crea tres:
 
 | Environment | Secrets | Protección |
 |---|---|---|
-| `ci` | `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET` | Ninguna (solo valida) |
-| `stg` | Los mismos dos | *Deployment branches*: solo `main` |
-| `prd` | Los mismos dos | *Required reviewers*: tú. *Deployment branches and tags*: solo tags `v*` |
+| `ci` | `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET` de `sp-andina-stg` | Ninguna (solo valida) |
+| `stg` | Los mismos dos, de `sp-andina-stg` | *Deployment branches*: solo `main` |
+| `prd` | Los mismos dos, de `sp-andina-prd` | *Required reviewers*: tú. *Deployment branches and tags*: solo tags `v*` |
 
 Y una **variable de repositorio** (Settings → Secrets and variables → Actions → Variables): `DATABRICKS_HOST` = `https://adb-7405605614782968.8.azuredatabricks.net`.
 
-> En una empresa habría un service principal por ambiente (y un workspace por ambiente). Aquí es uno solo porque los tres ambientes comparten workspace; el aislamiento lo dan el catálogo, el GitHub Environment y la aprobación de prd.
+> En una empresa habría además un workspace por ambiente. Aquí los tres comparten workspace; el aislamiento lo dan el catálogo, el service principal de cada ambiente, el GitHub Environment y la aprobación de prd.
 
 ### 3.3 Catálogo de stg
 
@@ -85,13 +91,7 @@ Una vez, como administrador, con [infra/04_unity_catalog_objetos.sql](../infra/0
 
 ### 3.4 Antes del primer despliegue de prd con el service principal
 
-Si prd ya se desplegó antes con tu usuario, sus pipelines publican las tablas de `andina_prd` y el despliegue del service principal crearía pipelines nuevos sobre las mismas tablas (mismo error de dev). Hay que revisarlo antes del primer tag:
-
-```powershell
-databricks bundle summary -t prd     # con tu usuario: ¿hay recursos desplegados?
-```
-
-Si los hay, se decide entre retirarlos o vincularlos (`databricks bundle deployment bind`) al despliegue del service principal.
+Si prd se hubiera desplegado antes con un usuario, sus pipelines serían dueños de las tablas de `andina_prd` y el service principal crearía pipelines duplicados (mismo error que en dev). Revisado el 2026-11-13: `andina_prd` tiene solo sus esquemas, sin tablas, Volumes ni pipelines, así que el primer despliegue con `sp-andina-prd` parte limpio.
 
 ## 4. Operación diaria
 
