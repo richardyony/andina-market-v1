@@ -52,7 +52,9 @@ Si una falla, la tarea lanza un error con la lista de pruebas fallidas: el job q
 Si se filtrara el secret de stg, no da acceso a prd.
 
 1. **Settings → Identity and access → Service principals → Add new** (gestionado por Databricks). `sp-andina-prd` ya existe; falta crear `sp-andina-stg`.
-2. En cada service principal, pestaña **Secrets → Generate secret**. Guarda el **Client ID** (es el *Application ID*) y el **Secret**: el secret se muestra una sola vez.
+2. En cada service principal, pestaña **Secrets → Generate secret**: vigencia **90 días** y scope **Other APIs → `all-apis` (Read + Write)**. Guarda el **Client ID** (es el *Application ID*) y el **Secret**: el secret se muestra una sola vez. Anota la fecha de vencimiento para rotarlo.
+
+   > **Por qué `all-apis`** (Databricks lo marca como no recomendado): `bundle deploy` usa APIs de workspace, jobs, pipelines, Unity Catalog y permisos, y la lista exacta se descubre por prueba y error. Lo que el SP puede tocar lo limitan igual sus GRANT de Unity Catalog. **Mejora pendiente:** revisar en `system.access.audit` las APIs que usa de verdad, generar un secret solo con esos scopes y revocar el actual.
 3. Darle acceso a lo que el job lee y escribe. En el SQL Editor, como administrador (reemplaza los `<application-id>`):
 
    ```sql
@@ -92,6 +94,41 @@ Una vez, como administrador, con [infra/04_unity_catalog_objetos.sql](../infra/0
 ### 3.4 Antes del primer despliegue de prd con el service principal
 
 Si prd se hubiera desplegado antes con un usuario, sus pipelines serían dueños de las tablas de `andina_prd` y el service principal crearía pipelines duplicados (mismo error que en dev). Revisado el 2026-11-13: `andina_prd` tiene solo sus esquemas, sin tablas, Volumes ni pipelines, así que el primer despliegue con `sp-andina-prd` parte limpio.
+
+### 3.4.1 Máscaras de datos personales en stg y prd
+
+`gold.dim_clientes` aplica máscaras de columna con las funciones de `<catálogo>.gobierno`. Si el esquema `gobierno` no existe en el catálogo del ambiente, el pipeline de gold falla con *function not found*. Al 2026-11-13 existía en `andina_dev` y faltaba en `andina_prd`. Se crean con el paso 7 de [infra/04_unity_catalog_objetos.sql](../infra/04_unity_catalog_objetos.sql), cambiando el catálogo.
+
+La máscara se evalúa según **quien consulta**, no según el dueño de la tabla (el service principal). Los analistas ven el dato enmascarado y `grp-andina-pii-lectores` ve el real. `es_posible_duplicado` se calcula desde silver, que no tiene máscara, así que no se ve afectado.
+
+**Después del primer despliegue de prd** (el esquema gold lo crea el pipeline):
+
+```sql
+GRANT USE SCHEMA, SELECT ON SCHEMA andina_prd.gold TO `grp-andina-analistas`;
+```
+
+### 3.4.2 Permisos de grupos por ambiente
+
+stg replica los permisos de prd: solo el service principal escribe. Así lo que se prueba en stg es lo que pasará en prd.
+
+| Grupo | dev | stg | prd |
+|---|---|---|---|
+| `grp-andina-data-engineers` | Leer y escribir (su entorno de trabajo) | Solo leer | Solo leer |
+| `grp-andina-analistas` | Leer gold (probar máscaras) | **Sin acceso** | Leer gold |
+| Service principal | No aplica (dev corre con el usuario) | Dueño (`sp-andina-stg`) | Dueño (`sp-andina-prd`) |
+
+Los analistas no ven stg: sus datos son de prueba y pueden recrearse. Los números del negocio salen solo de prd.
+
+### 3.5 Rotación de secrets (cada 90 días, igual en stg y prd)
+
+Una sola regla para todos los ambientes: los secrets de los service principals duran **90 días**. Para rotar sin cortar el servicio, unos días antes del vencimiento:
+
+1. Generar un secret **nuevo** en el service principal. Puede tener dos activos a la vez.
+2. Actualizar `DATABRICKS_CLIENT_SECRET` en el GitHub Environment del ambiente (y en `ci` si es el de stg).
+3. Comprobar que un despliegue funciona.
+4. **Revocar** el secret anterior.
+
+Un secret que no está guardado en ningún GitHub Environment se revoca: nadie debe tener una credencial de service principal fuera de CI/CD.
 
 ## 4. Operación diaria
 

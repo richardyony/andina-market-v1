@@ -119,6 +119,9 @@ RETURN CASE WHEN is_account_group_member('grp-andina-pii-lectores') THEN txt
 CREATE CATALOG IF NOT EXISTS andina_stg
   MANAGED LOCATION 'abfss://lakehouse@standinadevcus001.dfs.core.windows.net/andina_stg'
   COMMENT 'Andina Market · ambiente stg (staging): réplica de prd para probar despliegues.';
--- Luego, repetir los pasos 6 y 7 reemplazando andina_dev por andina_stg (permisos,
--- esquema gobierno y funciones de máscara), y dar acceso al service principal de
--- CI/CD (docs/despliegue_cicd.md, sección 3.1).
+-- Permisos: stg replica prd, no dev. Solo el service principal escribe; los ingenieros
+-- leen; los analistas NO tienen acceso (stg son datos de prueba, el negocio usa prd).
+GRANT USE CATALOG, USE SCHEMA, SELECT, BROWSE ON CATALOG andina_stg TO `grp-andina-data-engineers`;
+REVOKE BROWSE ON CATALOG andina_stg FROM `account users`;
+-- Luego, repetir el paso 7 (esquema gobierno y funciones de máscara) con andina_stg,
+-- y dar acceso al service principal sp-andina-stg (docs/despliegue_cicd.md, sección 3.1).
