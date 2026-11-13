@@ -2,8 +2,13 @@
 #  Andina Market · Declarative Automation Bundle (antes Databricks Asset Bundle)
 #
 #  QUÉ es: la definición como código de todo lo que se despliega en Databricks.
-#  UN solo bundle con DOS targets (dev y prd): el mismo código va a los dos
-#  ambientes; solo cambian las variables (catálogo, secret scope y storage).
+#  UN solo bundle con TRES targets (dev → stg → prd): el mismo código va a los tres
+#  ambientes; solo cambian las variables (catálogo, secret scope, storage y landing).
+#
+#  Promoción (docs/despliegue_cicd.md):
+#    dev  → lo despliega cada desarrollador desde su equipo (entorno personal)
+#    stg  → GitHub Actions al hacer merge a main
+#    prd  → GitHub Actions con un tag v*, con aprobación
 #
 #  Qué despliega (carpeta resources/, una subcarpeta por tipo de recurso):
 #    jobs/job_andina_diario.yml       orquestación: preparar → ingesta (bronze) → silver → gold
@@ -11,13 +16,15 @@
 #    pipelines/pl_andina_gold.yml     pipeline declarativo de gold   (un notebook por tabla)
 #
 #  Código (carpeta src/, numerada en el orden en que corre el job):
-#    00_preparacion → 01_bronze → 02_silver → 03_gold · 04_validacion (manual, fuera del job)
+#    00_preparacion → 01_bronze → 02_silver → 03_gold → 04_validacion (nb_validacion_final
+#    es la última tarea del job; los demás notebooks de 04 son análisis manual)
 #
 #  Uso (desde la raíz del repositorio):
 #    databricks bundle validate -t dev
 #    databricks bundle deploy   -t dev
 #    databricks bundle run job_andina_diario -t dev
-#    databricks bundle deploy   -t prd        ← promoción a producción, sin tocar código
+#    databricks bundle deploy   -t stg        ← lo hace CI/CD al hacer merge a main
+#    databricks bundle deploy   -t prd        ← lo hace CI/CD con un tag v*, sin tocar código
 # =============================================================================
 bundle:
   name: andina_market
@@ -30,6 +37,7 @@ include:
 # locales, infraestructura y exploración.
 sync:
   exclude:
+    - .github/**
     - docs/**
     - exploracion/**
     - fuentes/**
@@ -46,17 +54,23 @@ sync:
 # -----------------------------------------------------------------------------
 variables:
   catalogo:
-    description: Catálogo de Unity Catalog del ambiente (andina_dev / andina_prd).
+    description: Catálogo de Unity Catalog del ambiente (andina_dev / andina_stg / andina_prd).
   secret_scope:
     description: Secret scope respaldado por el Key Vault del ambiente (credenciales de Azure SQL).
   storage_account:
     description: Cuenta ADLS Gen2 del ambiente (raíz de los Volumes externos de landing).
+  carpeta_landing:
+    description: Carpeta de landing dentro del contenedor lakehouse. stg comparte el storage de dev y usa su propia carpeta para no solapar Volumes.
+    default: landing
+  sp_application_id:
+    description: Application ID del service principal del ambiente (sp-andina-stg o sp-andina-prd). Despliega desde GitHub Actions y ejecuta el job y los pipelines (run_as). Lo entrega CI/CD con BUNDLE_VAR_sp_application_id, desde los secrets del GitHub Environment.
+    default: ""
   correo_alertas:
     description: Destinatario de las alertas cuando el job falla.
     default: richardyony@gmail.com
 
 # -----------------------------------------------------------------------------
-# Targets: los dos ambientes
+# Targets: los tres ambientes
 # -----------------------------------------------------------------------------
 targets:
   dev:
@@ -71,14 +85,33 @@ targets:
       secret_scope: kv-andina-dev
       storage_account: standinadevcus001
 
-  prd:
-    # Producción: validaciones más estrictas y carpeta que solo modifica quien despliega
-    # (no /Workspace/Shared, editable por todos). Supuesto del reto: corre con el usuario
-    # que despliega; en una empresa se usaría run_as con un service principal.
+  stg:
+    # Staging: réplica de producción para probar el despliegue y el job completo antes
+    # de prd. Mismo modo y misma identidad que prd; lo único distinto son los datos.
+    # Supuesto (costo): reutiliza el storage, el Key Vault y la base de origen de dev,
+    # con catálogo propio (andina_stg) y carpeta de landing propia (stg/landing).
     mode: production
     workspace:
       host: https://adb-7405605614782968.8.azuredatabricks.net
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: ${var.sp_application_id}
+    variables:
+      catalogo: andina_stg
+      secret_scope: kv-andina-dev
+      storage_account: standinadevcus001
+      carpeta_landing: stg/landing
+
+  prd:
+    # Producción: validaciones más estrictas y carpeta que solo modifica quien despliega
+    # (no /Workspace/Shared, editable por todos). El job corre como el service principal
+    # (run_as), no como una persona: si quien despliega deja el equipo, prd sigue andando.
+    mode: production
+    workspace:
+      host: https://adb-7405605614782968.8.azuredatabricks.net
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      service_principal_name: ${var.sp_application_id}
     variables:
       catalogo: andina_prd
       secret_scope: kv-andina-prd

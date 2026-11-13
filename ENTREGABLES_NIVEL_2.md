@@ -14,7 +14,7 @@
 | **Respuestas del nivel 2**: las decisiones (etapas, calidad, modelado y SCD, formato) y lo que se espera dominar (patrones, pipelines declarativos, bundle) | [docs/respuestas_nivel_2_transformacion.docx](docs/respuestas_nivel_2_transformacion.docx) |
 | **Gobierno de datos personales** (permisos por capa, máscaras de columna en gold) | [infra/04_unity_catalog_objetos.sql](infra/04_unity_catalog_objetos.sql) (pasos 6 y 7) · [dim_clientes.ipynb](src/03_gold/dim_clientes.ipynb) · decisión D-24 y evidencia en la sección 5 del [README](README.md) |
 | **Formato, particionamiento y organización** | Sección 5 de [docs/modelo_datos/modelo_datos.md](docs/modelo_datos/modelo_datos.md) · decisión D-22 del [README](README.md) |
-| **Despliegue entre entornos** (un bundle, targets dev y prd) | [databricks.yml](databricks.yml) · [resources/jobs/job_andina_diario.yml](resources/jobs/job_andina_diario.yml) · [resources/pipelines/pl_andina_silver.yml](resources/pipelines/pl_andina_silver.yml) · [resources/pipelines/pl_andina_gold.yml](resources/pipelines/pl_andina_gold.yml) |
+| **Despliegue entre entornos** (un bundle, targets dev, stg y prd; CI/CD: PR → validate, `main` → stg, tag → prd con aprobación) | [databricks.yml](databricks.yml) · [docs/despliegue_cicd.md](docs/despliegue_cicd.md) · [.github/workflows/](.github/workflows/) · [resources/jobs/job_andina_diario.yml](resources/jobs/job_andina_diario.yml) · [resources/pipelines/pl_andina_silver.yml](resources/pipelines/pl_andina_silver.yml) · [resources/pipelines/pl_andina_gold.yml](resources/pipelines/pl_andina_gold.yml) |
 
 ## Evidencia
 
