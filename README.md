@@ -78,7 +78,7 @@ Cada decisión con su porqué y la alternativa que descarté.
 | D-20 | **Calidad en tres niveles: fallar, descartar a cuarentena, advertir** | Nada se descarta en silencio: lo inválido queda en `silver.cuarentena` con la regla que falló; lo mejorable entra marcado (`es_*`). Los `DELETE` CDC nunca se descartan | Solo `drop`: se pierde la evidencia de lo rechazado |
 | D-21 | **Estrella en gold con grano de línea y claves sustitutas deterministas** | El grano de línea permite analizar por producto sin duplicar; la unión a la versión SCD2 vigente usa la fecha del pedido; las claves por hash hacen que recalcular gold dé el mismo resultado | Tabla ancha desnormalizada: más simple, pero repite atributos y no conserva la historia de segmento |
 | D-22 | **Liquid clustering en lugar de particiones** | Con ~170 000 filas, particionar por fecha produciría miles de archivos diminutos; `CLUSTER BY` ordena por las columnas de consulta y se adapta al crecer | Particionar por fecha o país: problema de archivos pequeños |
-| D-23 | **Un solo bundle con dos targets (dev, prd) y un job diario con una tarea por capa** (preparar → bronze → silver → gold); silver y gold en pipelines separados, con un notebook por entidad | Un despliegue y un grafo donde se ve cada capa; el job referencia los pipelines directamente; el mismo código va a dev y prd cambiando solo variables. La separación por capa vive en el código, los pipelines y las tareas | Tres bundles encadenados por disparadores de actualización de tabla: cada capa se despliega por separado, pero son tres horarios y configuraciones repetidas para un mismo equipo |
+| D-23 | **Un solo bundle con tres targets (dev, stg, prd) y un job diario con una tarea por capa** (preparar → bronze → silver → gold → validación); silver y gold en pipelines separados, con un notebook por entidad | Un despliegue y un grafo donde se ve cada capa; el job referencia los pipelines directamente; el mismo código va a dev, stg y prd cambiando solo variables. La separación por capa vive en el código, los pipelines y las tareas | Tres bundles encadenados por disparadores de actualización de tabla: cada capa se despliega por separado, pero son tres horarios y configuraciones repetidas para un mismo equipo |
 | D-24 | **Datos personales: permisos por capa + máscaras de columna en gold** | Landing, bronze y silver tienen el dato real y solo los ve ingeniería (los pipelines lo necesitan: la detección de duplicados agrupa por email). Gold es la salida al negocio: analítica entra con `GRANT` solo a gold y ve `nombre`, `apellido` y `email` enmascarados salvo que esté en `grp-andina-pii-lectores`. Las máscaras son funciones de Unity Catalog en su propio esquema (`gobierno`) y se declaran en el esquema de la tabla del pipeline, así quedan versionadas en el bundle | Enmascarar desde silver: gold leería datos ya enmascarados y rompería duplicados y cruces. Copias anonimizadas de cada tabla: duplican almacenamiento y se desincronizan |
 | D-16 | **Control de costos** | SQL warehouse en 2X-Small, auto-stop 5 min y escalado 1/1; jobs serverless en modo STANDARD; schedules en pausa en dev | Valores por defecto: en una versión anterior el SQL warehouse explicó el 66 % del gasto |
 
@@ -104,7 +104,8 @@ Cada decisión con su porqué y la alternativa que descarté.
 
 | Archivo | Qué hace |
 |---|---|
-| [databricks.yml](databricks.yml) | Bundle `andina_market`, **un solo bundle con dos targets**: `dev` (development) y `prd` (production). Solo cambian catálogo, secret scope y cuenta ADLS |
+| [databricks.yml](databricks.yml) | Bundle `andina_market`, **un solo bundle con tres targets**: `dev` (development), `stg` y `prd` (production, `run_as` service principal). Solo cambian catálogo, secret scope, cuenta ADLS y carpeta de landing |
+| [.github/workflows/](.github/workflows/) | **CI/CD con GitHub Actions**: `ci.yml` (pruebas unitarias + `bundle validate` de los 3 targets en cada PR) y `cd.yml` (merge a `main` → stg; tag `v*` → prd con aprobación). Detalle en [docs/despliegue_cicd.md](docs/despliegue_cicd.md) |
 | [resources/jobs/job_andina_diario.yml](resources/jobs/job_andina_diario.yml) | Job `job_andina_diario` (serverless): `preparar_entorno` → `ingesta_bronze` → `transformacion_silver` → `transformacion_gold`; un reintento en la ingesta, una corrida a la vez, diario a las 02:00 en pausa, alerta por correo si falla |
 | [src/00_preparacion/nb_preparar_entorno.ipynb](src/00_preparacion/nb_preparar_entorno.ipynb) | Crea esquemas y Volumes con `IF NOT EXISTS`: respeta lo existente en dev y lo crea en prd |
 | [src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb](src/01_bronze/nb_bronze_sqlserver_ingesta.ipynb) | Extracción CDC → landing y carga Auto Loader → bronze, con tablas de control y bitácora |
@@ -266,17 +267,18 @@ El analista sigue pudiendo analizar por segmento, ciudad o proveedor de email, p
    pip install -r requirements-dev.txt
    python -m pytest        # 154 pruebas de reglas, cuarentena y limpieza
    ```
-8. **Verificar:** `src/04_validacion/nb_validacion_bronze_sqlserver.ipynb` (ingesta) y `src/04_validacion/nb_validacion_silver_gold.ipynb` (silver y gold), o consultar `andina_dev.control.ctl_ejecuciones`.
+8. **Verificar:** la última tarea del job, `validacion_final`, falla si algo no cuadra (conciliación, claves únicas, SCD2, gold = silver). Para el análisis detallado: `src/04_validacion/nb_validacion_bronze_sqlserver.ipynb` (ingesta) y `src/04_validacion/nb_validacion_silver_gold.ipynb` (silver y gold), o consultar `andina_dev.control.ctl_ejecuciones`.
 
-Promover a producción es `databricks bundle deploy -t prd`, sin cambiar código.
+Promover a stg y prd no se hace desde un equipo: lo hace GitHub Actions (merge a `main` → stg; tag `v*` → prd con aprobación), sin cambiar código. Configuración del service principal y de los GitHub Environments: [docs/despliegue_cicd.md](docs/despliegue_cicd.md).
 
 ---
 
 ## 7. Supuestos
 
 - **Datos sintéticos:** la empresa es ficticia; montos en **USD** y fechas en **UTC**. Países: Perú, Colombia, Ecuador, Bolivia y Chile.
-- **Un workspace para dev y prd:** el aislamiento lo dan catálogo, storage y Key Vault por entorno. En una empresa grande habría un workspace por entorno.
-- **Identidad de ejecución:** el bundle corre con el usuario que despliega. En producción real se usaría `run_as` con un service principal dedicado.
+- **Un workspace para dev, stg y prd:** el aislamiento lo dan catálogo, storage y Key Vault por entorno. En una empresa grande habría un workspace por entorno.
+- **stg comparte recursos con dev (costo):** usa el storage, el Key Vault y la base de origen de dev, con catálogo propio (`andina_stg`) y carpeta de landing propia (`stg/landing`).
+- **Identidad de ejecución:** dev corre con el usuario que despliega; stg y prd con un service principal por ambiente (`sp-andina-stg`, `sp-andina-prd`) mediante `run_as`: cada uno solo tiene permisos sobre su catálogo.
 - **Red:** Azure SQL y ADLS con acceso público restringido por firewall y autenticación. En producción, Private Endpoints.
 - **Redundancia:** storage LRS por costo; en producción, ZRS o GRS.
 - **Clientes duplicados: se marcan, no se fusionan.** Mismo email canónico, o mismo nombre, apellido y teléfono, es una *sospecha*; fusionar dos cuentas cambia el historial de compras de una persona y es una decisión de negocio (o de un proceso de datos maestros), no del pipeline. Gold expone `es_posible_duplicado` para que analítica decida y nada se pierde si la sospecha era falsa.
@@ -296,16 +298,18 @@ Usé asistentes de IA en todo el proyecto, como permite el reto. Las decisiones,
 - **Pruebas unitarias de silver:** decidí probar las reglas con filas malas armadas a mano porque la cuarentena real estaba vacía; Claude Code escribió las pruebas, que encontraron los dos defectos descritos en la sección 5 (regex de email sin escapar en SQL y reglas no null-safe). Los corregimos, reconstruimos silver y gold en dev y comprobamos los mismos conteos y montos.
 - **Prueba de cuarentena de punta a punta:** decidí inyectar filas inválidas en la fuente real; ejecuté yo el script SQL y el job. La prueba encontró el defecto 3 (la cuarentena no recibía nada); Claude Code rastreó la causa capa por capa con el event log y aplicó la corrección que revisé.
 - **Lo que detecté y corregí al revisar:** el job desplegado con el bundle falló por un paréntesis sobrante en un `MERGE` que en la ejecución manual no se había manifestado; se reemplazó por un DataFrame con esquema explícito. También se corrigieron rutas relativas de los logs de los generadores y un bundle de prd que inicialmente usaba una carpeta editable por todos los usuarios.
+- **Despliegue profesional (stg, CI/CD y validación final):** decidí agregar stg reutilizando los recursos de dev, CI/CD con GitHub Actions y un service principal, y que la validación sea la última tarea del job. Claude Code escribió los workflows, el target stg y el notebook de validación, y detectó dos choques antes de desplegar: dos Volumes de stg y dev sobre la misma ruta (se resolvió con la carpeta `stg/landing`) y dev desplegado desde CI chocando con el dev personal (dev queda como despliegue manual).
 
 ---
 
 ## Estructura del repositorio
 
 ```
-databricks.yml                bundle andina_market: targets dev / prd y variables
+databricks.yml                bundle andina_market: targets dev / stg / prd y variables
+.github/workflows/            CI (pruebas + validate en cada PR) y CD (main → stg, tag v* → prd)
 resources/                    QUÉ se despliega (YAML), una carpeta por tipo de recurso
 ├── jobs/
-│   └── job_andina_diario.yml orquestación: preparar → bronze → silver → gold
+│   └── job_andina_diario.yml orquestación: preparar → bronze → silver → gold → validación
 └── pipelines/
     ├── pl_andina_silver.yml  pipeline declarativo de silver
     └── pl_andina_gold.yml    pipeline declarativo de gold
@@ -314,7 +318,7 @@ src/                          CÓMO se procesa (código), numerado en el orden d
 ├── 01_bronze/                ingesta CDC → landing → bronze
 ├── 02_silver/                un notebook por entidad (slv_*.ipynb) + comun.py + reglas_calidad.py
 ├── 03_gold/                  un notebook por tabla (dim_*.ipynb, fact_*.ipynb) + comun_gold.py
-└── 04_validacion/            pruebas manuales (no van en los jobs)
+└── 04_validacion/            nb_validacion_final (última tarea del job) + análisis manual
 tests/                        pruebas unitarias de silver (pytest + Spark local) · pytest.ini · requirements-dev.txt
 infra/
 ├── 04_unity_catalog_objetos.sql  objetos de Unity Catalog (una vez por ambiente; el paso 04 de la secuencia de fuentes/)
@@ -334,6 +338,6 @@ docs/
 ├── evidencias/               evidencias de ejecución (job, máscaras)
 ├── manual_tecnico_andina_market.docx   manual paso a paso por nivel, con diagrama de secuencia
 ├── respuestas_nivel_1_ingesta.docx · respuestas_nivel_2_transformacion.docx
-└── diseno_streaming.md · diseno_sap.md · estandar_documentacion.md
+└── diseno_streaming.md · diseno_sap.md · estandar_documentacion.md · despliegue_cicd.md
 ENTREGABLES_NIVEL_1.md · ENTREGABLES_NIVEL_2.md   índice por nivel: lo que pide el reto y dónde está
 ```

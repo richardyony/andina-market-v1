@@ -1,0 +1,68 @@
+# =============================================================================
+#  CD · Andina Market: despliega el bundle según dónde llega el código.
+#
+#    push a main      → target stg   (cada merge de develop a main se prueba en staging)
+#    tag v*  (v1.1…)  → target prd   (solo con aprobación: Required reviewers en el
+#                                     GitHub Environment "prd")
+#
+#  dev NO se despliega aquí: es el entorno personal de cada desarrollador
+#  (`databricks bundle deploy -t dev` desde su equipo). En modo development cada
+#  identidad crea su propia copia de los pipelines, y dos copias escribiendo en el
+#  mismo catálogo andina_dev chocan (TABLE_ALREADY_MANAGED_BY_OTHER_PIPELINE).
+#  Lo que llega a develop ya pasó por ci.yml (pruebas + validate de los 3 targets).
+#
+#  Cada ambiente es un GitHub Environment (stg, prd) con sus propios secrets. Así,
+#  un workflow de stg no puede leer las credenciales de prd, y prd exige que una
+#  persona apruebe el despliegue.
+#
+#  El despliegue no corre el job: el job de stg y prd tiene su horario (02:00 Lima)
+#  y se puede disparar a mano con `databricks bundle run job_andina_diario -t <env>`.
+# =============================================================================
+name: cd
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# Nunca dos despliegues a la vez sobre el mismo ambiente: el segundo espera.
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'prd' || 'stg' }}
+    env:
+      TARGET: ${{ startsWith(github.ref, 'refs/tags/v') && 'prd' || 'stg' }}
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+      BUNDLE_VAR_sp_application_id: ${{ secrets.DATABRICKS_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                # necesario para comprobar que el tag está en main
+
+      - name: Un tag de producción debe apuntar a un commit de main
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "::error::El tag ${GITHUB_REF_NAME} no está en main: prd solo recibe código ya probado en stg"; exit 1; }
+
+      - uses: databricks/setup-cli@v1.24.0
+
+      - name: Validar
+        run: databricks bundle validate -t "$TARGET"
+
+      - name: Desplegar
+        run: databricks bundle deploy -t "$TARGET"
+
+      - name: Resumen
+        run: databricks bundle summary -t "$TARGET"
