@@ -97,6 +97,14 @@ Una vez, como administrador, con [infra/04_unity_catalog_objetos.sql](../infra/0
 
 Si prd se hubiera desplegado antes con un usuario, sus pipelines serían dueños de las tablas de `andina_prd` y el service principal crearía pipelines duplicados (mismo error que en dev). Revisado el 2026-11-13: `andina_prd` tiene solo sus esquemas, sin tablas, Volumes ni pipelines, así que el primer despliegue con `sp-andina-prd` parte limpio.
 
+**Dueño de los esquemas.** En stg y prd, el dueño de los esquemas operativos (`landing`, `control`, `bronze`, `silver`, `gold`) debe ser el service principal. Si los crea el job, lo es automáticamente. En prd ya existían, creados a mano en la v1, y la primera corrida falló en `preparar_entorno` con `PERMISSION_DENIED: ... does not have MANAGE on Schema 'andina_prd.landing'`: `COMMENT ON SCHEMA` exige ser dueño o tener MANAGE, y `ALL PRIVILEGES` no lo incluye. stg no lo detectó porque partió vacío. Corrección:
+
+```sql
+ALTER SCHEMA andina_prd.landing OWNER TO `<application-id-prd>`;   -- igual bronze, silver y gold
+```
+
+`gobierno` sigue siendo del administrador: quien define las máscaras de datos personales no es quien escribe los datos.
+
 ### 3.4.1 Máscaras de datos personales en stg y prd
 
 `gold.dim_clientes` aplica máscaras de columna con las funciones de `<catálogo>.gobierno`. Si el esquema `gobierno` no existe en el catálogo del ambiente, el pipeline de gold falla con *function not found*. Al 2026-11-13 existía en `andina_dev` y faltaba en `andina_prd`. Se crean con el paso 7 de [infra/04_unity_catalog_objetos.sql](../infra/04_unity_catalog_objetos.sql), cambiando el catálogo.

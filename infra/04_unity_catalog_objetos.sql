@@ -111,6 +111,12 @@ RETURN CASE WHEN is_account_group_member('grp-andina-pii-lectores') THEN txt
 --   SHOW GRANTS ON SCHEMA andina_dev.gold;
 
 -- Para prd: repetir los pasos 2 a 7 con loc_andina_prd, andina_prd y standinaprdcus001.
+-- OJO: en stg y prd los esquemas operativos (landing, control, bronze, silver, gold) los crea
+-- el job, que corre como el service principal, y él queda como dueño. Si se crean a mano, el
+-- dueño es una persona y preparar_entorno falla (COMMENT ON SCHEMA exige ser dueño o MANAGE;
+-- ALL PRIVILEGES no lo incluye). Si ya existen, se traspasan (2026-11-13, prueba 6):
+--   ALTER SCHEMA andina_prd.landing OWNER TO `<application-id-prd>`;   -- igual bronze, silver, gold
+-- gobierno se queda con el administrador: quien define las máscaras no es quien escribe los datos.
 
 -- Para stg (staging): comparte la ubicación externa loc_andina_dev y el storage de dev
 -- (supuesto de costo), pero tiene catálogo propio y su propia carpeta de landing.
